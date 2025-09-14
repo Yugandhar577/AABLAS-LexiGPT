@@ -1,63 +1,748 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Lawyer Interface</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Lawyer Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        /* Dark Mode CSS Variables (Default) */
+        :root {
+            --bg-color: #121212;
+            --sidebar-color: #1E1E1E;
+            --text-color: #ECECF1;
+            --link-color: #D1D5DB;
+            --link-hover-bg: rgba(255, 255, 255, 0.08);
+            --active-chat-bg: #343541;
+            --purple-accent: #AB68F5;
+            --purple-button-bg: #4F46E5;
+            --user-message-bg: #444654;
+            --bot-message-bg: #343541;
+            --user-border-color: rgba(173, 216, 230, 0.5);
+            --bot-border-color: rgba(70, 130, 180, 0.5);
+            --shadow-color: rgba(0, 0, 0, 0.5);
+        }
+
+        /* Light Mode CSS Variables */
+        body[data-theme="light"] {
+            --bg-color: #F7F7F7;
+            --sidebar-color: #FFFFFF;
+            --text-color: #333333;
+            --link-color: #666666;
+            --link-hover-bg: rgba(0, 0, 0, 0.05);
+            --active-chat-bg: #EAEAEA;
+            --purple-button-bg: #5A52D5;
+            --user-message-bg: #FFFFFF;
+            --bot-message-bg: #F0F0F0;
+            --user-border-color: rgba(0, 123, 255, 0.5);
+            --bot-border-color: rgba(0, 123, 255, 0.5);
+            --shadow-color: rgba(0, 0, 0, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.5s ease, color 0.5s ease;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideInUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .app-container {
+            display: flex;
+            flex-grow: 1;
+            position: relative;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            justify-content: space-between;
+            opacity: 0;
+            transform: scale(0.95);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+        
+        body.chat-started .main-content {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .sidebar {
+            width: 260px;
+            background-color: var(--sidebar-color);
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            transition: width 0.3s ease-in-out, transform 0.3s ease-in-out, background-color 0.3s ease-in-out;
+            animation: fadeIn 0.8s ease-in-out;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100%;
+                z-index: 50;
+                transform: translateX(-100%);
+            }
+            .sidebar.expanded {
+                transform: translateX(0);
+                box-shadow: 0 0 20px var(--shadow-color);
+            }
+            .sidebar-backdrop {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 40;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.3s ease-in-out;
+            }
+            .sidebar.expanded + .sidebar-backdrop {
+                opacity: 1;
+                pointer-events: auto;
+            }
+        }
+
+        .sidebar-top {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .chatgpt-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            cursor: pointer;
+            border: 1px solid var(--bot-border-color);
+            border-radius: 8px;
+            margin-bottom: 5px;
+            box-shadow: 0 0 10px var(--shadow-color);
+            transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out, transform 0.2s ease;
+        }
+        .chatgpt-header:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 15px var(--shadow-color);
+        }
+        .chatgpt-header h1 {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        .chatgpt-header svg {
+            color: var(--link-color);
+            transition: transform 0.3s ease-in-out;
+        }
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--link-color);
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        .sidebar-item:hover {
+            background-color: var(--link-hover-bg);
+            transform: translateX(5px);
+        }
+        .sidebar-item-new-chat {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--text-color);
+            border: 1px solid var(--user-border-color);
+            box-shadow: 0 0 10px var(--shadow-color);
+            transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out, background-color 0.3s, transform 0.2s ease;
+        }
+        .sidebar-item-new-chat:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        .chats-list {
+            margin: 20px 0;
+            flex-grow: 1;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+        }
+        .chats-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        .chats-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chats-list::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+        .chats-list-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 400;
+            color: var(--link-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+        .chats-list-item:hover {
+            background-color: var(--link-hover-bg);
+            transform: translateX(5px);
+        }
+        .chats-list-item.active {
+            background-color: var(--active-chat-bg);
+            color: var(--text-color);
+            border: 1px solid var(--bot-border-color);
+            box-shadow: 0 0 10px var(--shadow-color);
+            transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out, background-color 0.3s;
+        }
+        .sidebar-bottom {
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .sidebar-bottom-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            color: var(--text-color);
+            border: 1px solid var(--bot-border-color);
+            box-shadow: 0 0 10px var(--shadow-color);
+            transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out, transform 0.2s ease;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        .sidebar-bottom-item:hover {
+            background-color: var(--link-hover-bg);
+            transform: translateY(-2px);
+        }
+        .sidebar-toggle {
+            display: none;
+        }
+        @media (min-width: 769px) {
+            .sidebar {
+                width: 60px;
+            }
+            .sidebar.expanded {
+                width: 260px;
+            }
+            .sidebar-toggle {
+                display: flex;
+                padding-top: 10px;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: transform 0.3s ease-in-out;
+                margin-top: 10px;
+            }
+            .sidebar-toggle svg {
+                transform: rotate(180deg);
+                transition: transform 0.3s ease-in-out;
+            }
+            .sidebar.expanded .sidebar-toggle svg {
+                transform: none;
+            }
+            .sidebar .sidebar-item span,
+            .sidebar .sidebar-bottom-item,
+            .sidebar .chats-list-item,
+            .sidebar .chatgpt-header h1 {
+                display: none;
+            }
+            .sidebar.expanded .sidebar-item span,
+            .sidebar.expanded .sidebar-bottom-item,
+            .sidebar.expanded .chats-list-item,
+            .sidebar.expanded .chatgpt-header h1 {
+                display: block;
+            }
+        }
+        .header-main {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            position: relative;
+        }
+        @media (min-width: 769px) {
+            .header-main {
+                justify-content: flex-end;
+            }
+        }
+        .mobile-menu-toggle {
+            display: none;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .mobile-menu-toggle:hover {
+            transform: scale(1.1);
+        }
+        @media (max-width: 768px) {
+            .mobile-menu-toggle {
+                display: block;
+                padding: 10px;
+            }
+        }
+        #initial-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            max-width: 768px;
+            padding: 20px;
+            text-align: center;
+            z-index: 10;
+            animation: fadeIn 1s ease-in-out;
+        }
+        body.chat-started #initial-content {
+            display: none;
+        }
+        .central-text {
+            font-size: 2.2rem;
+            font-weight: 600;
+            color: var(--text-color);
+            margin-bottom: 20px;
+        }
+        .initial-prompt-area {
+            position: relative;
+        }
+        .initial-prompt-input {
+            width: 100%;
+            padding: 16px 48px 16px 20px;
+            background-color: var(--active-chat-bg);
+            border: 1px solid var(--bot-border-color);
+            border-radius: 20px;
+            color: var(--text-color);
+            font-size: 1rem;
+            outline: none;
+            box-shadow: 0 0 10px var(--shadow-color);
+            transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out;
+        }
+        .initial-prompt-input:focus {
+            border-color: var(--bot-border-color);
+            box-shadow: 0 0 15px var(--shadow-color);
+        }
+        .input-icons-wrapper {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .input-icon {
+            color: var(--link-color);
+            cursor: pointer;
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
+        .input-icon:hover {
+            color: var(--text-color);
+            transform: scale(1.1);
+        }
+        #chat-history {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: 768px;
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-bottom: 20px;
+            margin: 0 auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+        }
+        #chat-history::-webkit-scrollbar {
+            width: 8px;
+        }
+        #chat-history::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #chat-history::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+        .chat-message {
+            width: 100%;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 1rem;
+            line-height: 1.6;
+            transition: box-shadow 0.3s ease-in-out;
+            word-wrap: break-word; /* Older browsers */
+            overflow-wrap: break-word; /* Modern browsers */
+            word-break: break-all;
+            animation: slideInUp 0.5s ease-out;
+        }
+        .user-message {
+            background-color: var(--user-message-bg);
+            border: 2px solid var(--user-border-color);
+            box-shadow: 0 0 10px var(--shadow-color);
+            border-radius: 10px 10px 0 10px;
+            align-self: flex-end;
+            max-width: 80%;
+        }
+        .bot-message {
+            background-color: var(--bot-message-bg);
+            border: 2px solid var(--bot-border-color);
+            box-shadow: 0 0 10px var(--shadow-color);
+            border-radius: 10px 10px 10px 0;
+            align-self: flex-start;
+            max-width: 80%;
+        }
+        @media (min-width: 769px) {
+            .user-message {
+                margin-left: 20%;
+            }
+            .bot-message {
+                margin-right: 20%;
+            }
+        }
+        .prompt-area {
+            width: 100%;
+            max-width: 768px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            position: relative;
+            animation: fadeIn 1s ease-in-out;
+        }
+        .prompt-input {
+            width: 100%;
+            padding: 16px 48px 16px 20px;
+            background-color: var(--active-chat-bg);
+            border: 1px solid var(--bot-border-color);
+            border-radius: 20px;
+            color: var(--text-color);
+            font-size: 1rem;
+            outline: none;
+            box-shadow: 0 0 10px var(--shadow-color);
+            transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out;
+        }
+        .prompt-input:focus {
+            border-color: var(--bot-border-color);
+            box-shadow: 0 0 15px var(--shadow-color);
+        }
+        #file-upload-input {
+            display: none;
+        }
+
+        #theme-toggle-container {
+            z-index: 20;
+        }
+
+        #theme-toggle {
+            background-color: var(--sidebar-color);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            padding: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 0 10px var(--shadow-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--link-color);
+        }
+
+        #theme-toggle:hover {
+            background-color: var(--link-hover-bg);
+            transform: rotate(360deg);
+        }
+
+        #theme-toggle svg {
+            width: 20px;
+            height: 20px;
+            transition: opacity 0.3s ease;
+        }
+    </style>
 </head>
-<body class="bg-gray-50 text-gray-900">
+<body>
+    <div class="sidebar-backdrop"></div>
+    <div class="sidebar">
+        <div>
+            <div class="sidebar-top">
+                <div class="chatgpt-header">
+                    <h1>AI Lawyer</h1>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M1.646 6.646a.5.5 0 0 1 .708 0L8 12.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+                    </svg>
+                </div>
+                <div class="sidebar-item sidebar-item-new-chat">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
+                    </svg>
+                    <span>New chat</span>
+                </div>
+                <div class="sidebar-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                    </svg>
+                    <span>Search chats</span>
+                </div>
+                <div class="sidebar-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M2.5 11.5A.5.5 0 0 1 3 11V6a.5.5 0 0 1 1 0v5a.5.5 0 0 1-.5.5zm2-4A.5.5 0 0 1 5 7V6a.5.5 0 0 1 1 0v1a.5.5 0 0 1-.5.5zm2 2A.5.5 0 0 1 7 9V6a.5.5 0 0 1 1 0v3a.5.5 0 0 1-.5.5zm2-2A.5.5 0 0 1 9 7V6a.5.5 0 0 1 1 0v1a.5.5 0 0 1-.5.5zm2 0A.5.5 0 0 1 11 7V6a.5.5 0 0 1 1 0v1a.5.5 0 0 1-.5.5zm2 2A.5.5 0 0 1 13 9V6a.5.5 0 0 1 1 0v3a.5.5 0 0 1-.5.5z"/>
+                    </svg>
+                    <span>Library</span>
+                </div>
+            </div>
 
-  <!-- Sidebar Backdrop -->
-  <div class="sidebar-backdrop hidden fixed inset-0 bg-black opacity-50 z-40"></div>
+            <ul class="chats-list">
+                <li class="chats-list-item active">History</li>
+            </ul>
 
-  <!-- Sidebar -->
-  <div class="sidebar fixed top-0 left-0 h-full w-64 bg-white shadow-md z-50 transform -translate-x-full transition-transform duration-300 ease-in-out">
-    <div class="p-4 border-b font-bold text-lg">Menu</div>
-    <ul class="p-4 space-y-3">
-      <li><a href="#" class="block hover:text-blue-600">Dashboard</a></li>
-      <li><a href="#" class="block hover:text-blue-600">Documents</a></li>
-      <li><a href="#" class="block hover:text-blue-600">Contracts</a></li>
-      <li><a href="#" class="block hover:text-blue-600">Settings</a></li>
-    </ul>
-  </div>
+            <div class="sidebar-bottom">
+                <div class="sidebar-bottom-item">Sign Up</div>
+                <div class="sidebar-bottom-item">Login</div>
+            </div>
+        </div>
 
-  <!-- Main App -->
-  <div class="app-container ml-0 lg:ml-64 transition-all duration-300">
-
-    <!-- Initial Content -->
-    <div id="initial-content" class="flex flex-col items-center justify-center h-screen">
-      <div class="central-text text-2xl mb-6">Ready when you are.</div>
-      <div class="prompt-area flex items-center space-x-2">
-        <input type="text" id="initial-prompt-input" placeholder="Ask anything"
-          class="initial-prompt-input border rounded px-3 py-2 w-72" />
-        <button id="initial-send-btn" class="px-4 py-2 bg-blue-600 text-white rounded">Send</button>
-      </div>
+        <div class="sidebar-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0"/>
+            </svg>
+        </div>
     </div>
 
-    <!-- Main Content -->
-    <div id="main-content" class="hidden flex flex-col h-screen">
-      <!-- Header -->
-      <div class="header-main flex items-center justify-between p-4 border-b bg-white shadow">
-        <h1 class="font-bold text-lg">AI Legal Advisor</h1>
-        <button id="sidebarToggle" class="px-3 py-1 bg-gray-200 rounded">☰</button>
-      </div>
+    <div class="app-container">
+        <div id="initial-content">
+            <div class="central-text">
+                Ready when you are.
+            </div>
+            <div class="prompt-area initial-prompt-area">
+                <input type="text" id="initial-prompt-input" placeholder="Ask anything" class="initial-prompt-input" />
+                <div class="input-icons-wrapper">
+                    <svg class="input-icon" id="initial-upload-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16" title="Upload Document">
+                        <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
+                    </svg>
+                    <svg class="input-icon" id="initial-mic-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M12.738 8.582a.5.5 0 0 0-.214.331c-.114.398-.242.793-.385 1.185a.8.8 0 0 1-.09.219l-.493 1.056a2 2 0 0 1-1.393 1.127L7.545 14h-.05A2 2 0 0 1 5.485 12.91l-.217-.468c-.15-.323-.284-.65-.407-.98a.8.8 0 0 1-.07-.179c-.112-.31-.22-.622-.325-.935l-.044-.123a.5.5 0 0 0-.462-.315H.5a.5.5 0 0 0 0 1H2.15a1.5 1.5 0 0 1 1.488 1.288l.38.818a3 3 0 0 0 2.627 1.666h.05a3 3 0 0 0 2.627-1.666l.38-.818A1.5 1.5 0 0 1 13.85 9h1.65a.5.5 0 0 0 0-1h-2.762z"/>
+                        <path d="M13.298 3.25a.5.5 0 0 0-.616.326L12 5.564v2.09c0 2.859-2.313 5.172-5.172 5.172S1.656 10.513 1.656 7.654v-2.09l-.683-1.99a.5.5 0 0 0-.616-.326.5.5 0 0 0-.326.616l.635 1.847c.105.305.22.618.34.928.146.386.309.778.487 1.168.16.347.332.697.518 1.045a4.174 4.174 0 0 0 .741 1.107 4.544 4.544 0 0 0 1.251 1.002A3.174 3.174 0 0 0 7.828 13c1.786 0 3.235-1.449 3.235-3.235V.5a.5.5 0 0 0-1 0v9.265c0 1.233-1 2.235-2.235 2.235S4.36 10.5 4.36 9.265V.5a.5.5 0 0 0-1 0v9.265c0 1.233-1 2.235-2.235 2.235S-.11 10.5-.11 9.265V.5a.5.5 0 0 0-1 0v9.265a3.235 3.235 0 0 0 3.235 3.235s1.233-1 2.235-2.235V.5a.5.5 0 0 0-1 0v9.265c0 1.233-1 2.235-2.235 2.235S.11 10.5.11 9.265a3.235 3.235 0 0 0 3.235-3.235S.11 3.5.11 2.265a3.235 3.235 0 0 0 3.235-3.235S.11 0 .11 0a.5.5 0 0 0-1 0z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
 
-      <!-- Chat History -->
-      <div id="chat-history" class="flex-1 p-4 space-y-2 bg-gray-100 overflow-y-auto"></div>
+        <div class="main-content">
+            <div class="header-main">
+                <div class="mobile-menu-toggle">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M4 6h16a1 1 0 0 1 0 2H4a1 1 0 0 1 0-2zm0 5h16a1 1 0 0 1 0 2H4a1 1 0 0 1 0-2zm0 5h16a1 1 0 0 1 0 2H4a1 1 0 0 1 0-2z"/>
+                    </svg>
+                </div>
+                <div id="theme-toggle-container">
+                    <button id="theme-toggle">
+                        <svg id="moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M21.73 13.92a.5.5 0 0 0 .15-.47c-.15-.43-.46-.8-.9-.94A10.02 10.02 0 0 1 12 2C6.48 2 2 6.48 2 12c0 5.52 4.48 10 10 10a10.02 10.02 0 0 1 9.88-9.06c.44-.14.75-.51.9-.94a.5.5 0 0 0-.15-.47zM12 20.5c-4.74 0-8.63-3.92-8.52-8.67a8.55 8.55 0 0 0 8.52 8.67z"/>
+                        </svg>
+                        <svg id="sun-icon" class="hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"/>
+                            <path d="M12 23a1 1 0 0 1-1-1v-2a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1zM12 3a1 1 0 0 1-1-1V.99a1 1 0 1 1 2 0v1.01a1 1 0 0 1-1 1zM5.64 19.36a1 1 0 0 1-.71-.29l-1.41-1.41a1 1 0 1 1 1.41-1.41l1.41 1.41a1 1 0 0 1-.7 1.7zM19.36 5.64a1 1 0 0 1-.71-.29l-1.41-1.41a1 1 0 1 1 1.41-1.41l1.41 1.41a1 1 0 0 1-.7 1.7zM23 12a1 1 0 0 1-1 1h-2a1 1 0 1 1 0-2h2a1 1 0 0 1 1 1zM3 12a1 1 0 0 1-1 1H.99a1 1 0 1 1 0-2H2a1 1 0 0 1 1 1zM19.36 19.36a1 1 0 0 1-.7-.29l-1.41-1.41a1 1 0 1 1 1.41-1.41l1.41 1.41a1 1 0 0 1-.7 1.7zM5.64 5.64a1 1 0 0 1-.71-.29l-1.41-1.41a1 1 0 1 1 1.41-1.41l1.41 1.41a1 1 0 0 1-.7 1.7z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
 
-      <!-- Input Row -->
-      <div class="prompt-area flex items-center space-x-2 p-4 border-t bg-white">
-        <input type="text" id="prompt-input" placeholder="Ask anything"
-          class="flex-1 border px-3 py-2 rounded" />
-        <input type="file" id="file-upload-input" accept=".txt,.pdf,.doc,.docx" class="hidden" />
-        <button id="sendButton" class="px-4 py-2 bg-blue-600 text-white rounded">Send</button>
-      </div>
+            <div id="chat-history"></div>
+
+            <div class="prompt-area">
+                <input type="text" id="prompt-input" placeholder="Ask anything" class="prompt-input" />
+                <div class="input-icons-wrapper">
+                    <svg class="input-icon" id="upload-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16" title="Upload Document">
+                        <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
+                    </svg>
+                    <svg class="input-icon" id="mic-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M12.738 8.582a.5.5 0 0 0-.214.331c-.114.398-.242.793-.385 1.185a.8.8 0 0 1-.09.219l-.493 1.056a2 2 0 0 1-1.393 1.127L7.545 14h-.05A2 2 0 0 1 5.485 12.91l-.217-.468c-.15-.323-.284-.65-.407-.98a.8.8 0 0 1-.07-.179c-.112-.31-.22-.622-.325-.935l-.044-.123a.5.5 0 0 0-.462-.315H.5a.5.5 0 0 0 0 1H2.15a1.5 1.5 0 0 1 1.488 1.288l.38.818a3 3 0 0 0 2.627 1.666h.05a3 3 0 0 0 2.627-1.666l.38-.818A1.5 1.5 0 0 1 13.85 9h1.65a.5.5 0 0 0 0-1h-2.762z"/>
+                        <path d="M13.298 3.25a.5.5 0 0 0-.616.326L12 5.564v2.09c0 2.859-2.313 5.172-5.172 5.172S1.656 10.513 1.656 7.654v-2.09l-.683-1.99a.5.5 0 0 0-.616-.326.5.5 0 0 0-.326.616l.635 1.847c.105.305.22.618.34.928.146.386.309.778.487 1.168.16.347.332.697.518 1.045a4.174 4.174 0 0 0 .741 1.107 4.544 4.544 0 0 0 1.251 1.002A3.174 3.174 0 0 0 7.828 13c1.786 0 3.235-1.449 3.235-3.235V.5a.5.5 0 0 0-1 0v9.265c0 1.233-1 2.235-2.235 2.235S4.36 10.5 4.36 9.265V.5a.5.5 0 0 0-1 0v9.265c0 1.233-1 2.235-2.235 2.235S-.11 10.5-.11 9.265V.5a.5.5 0 0 0-1 0v9.265a3.235 3.235 0 0 0 3.235 3.235s1.233-1 2.235-2.235V.5a.5.5 0 0 0-1 0v9.265c0 1.233-1 2.235-2.235 2.235S.11 10.5.11 9.265a3.235 3.235 0 0 0 3.235-3.235S.11 3.5.11 2.265a3.235 3.235 0 0 0 3.235-3.235S.11 0 .11 0a.5.5 0 0 0-1 0z"/>
+                    </svg>
+                </div>
+                <input type="file" id="file-upload-input" accept=".txt,.pdf,.doc,.docx" />
+            </div>
+        </div>
     </div>
-  </div>
 
-  <!-- JS -->
-  <script src="script.js"></script>
+    <script>
+        const initialPromptInput = document.getElementById('initial-prompt-input');
+        const promptInput = document.getElementById('prompt-input');
+        const chatHistory = document.getElementById('chat-history');
+        const body = document.body;
+        const sidebar = document.querySelector('.sidebar');
+        const sidebarBackdrop = document.querySelector('.sidebar-backdrop');
+        const sidebarToggle = document.querySelector('.sidebar-toggle');
+        const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
+        const fileUploadInput = document.getElementById('file-upload-input');
+        const uploadIcon = document.getElementById('upload-icon');
+        const initialUploadIcon = document.getElementById('initial-upload-icon');
+        const themeToggle = document.getElementById('theme-toggle');
+        const moonIcon = document.getElementById('moon-icon');
+        const sunIcon = document.getElementById('sun-icon');
+
+        // Sidebar toggle for desktop
+        sidebarToggle.addEventListener('click', function() {
+            sidebar.classList.toggle('expanded');
+        });
+
+        // Sidebar toggle for mobile
+        mobileMenuToggle.addEventListener('click', function() {
+            sidebar.classList.add('expanded');
+        });
+
+        // Hide sidebar when clicking outside on mobile
+        sidebarBackdrop.addEventListener('click', function() {
+            sidebar.classList.remove('expanded');
+        });
+
+        // Event listener for the main chat upload icon
+        uploadIcon.addEventListener('click', () => {
+            fileUploadInput.click();
+        });
+
+        // Event listener for the initial screen upload icon
+        initialUploadIcon.addEventListener('click', () => {
+            fileUploadInput.click();
+        });
+
+        // Event listener for file selection
+        fileUploadInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                if (!body.classList.contains('chat-started')) {
+                    body.classList.add('chat-started');
+                    initialPromptInput.value = '';
+                }
+
+                const uploadMessage = `User has uploaded a document: ${file.name}`;
+                sendMessage(uploadMessage);
+                fileUploadInput.value = '';
+            }
+        });
+
+        // Theme Toggle Logic
+        function setTheme(theme) {
+            if (theme === 'light') {
+                body.setAttribute('data-theme', 'light');
+                moonIcon.classList.add('hidden');
+                sunIcon.classList.remove('hidden');
+            } else {
+                body.removeAttribute('data-theme');
+                moonIcon.classList.remove('hidden');
+                sunIcon.classList.add('hidden');
+            }
+            localStorage.setItem('theme', theme);
+        }
+
+        // Set initial theme on page load
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        setTheme(savedTheme);
+
+        // Toggle theme on button click
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = body.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+            setTheme(currentTheme);
+        });
+
+      // Function to add a message to chat history
+      function sendMessage(message, isUser = true) {
+          const msgDiv = document.createElement('div');
+          msgDiv.className = `chat-message ${isUser ? 'user-message' : 'bot-message'}`;
+          msgDiv.textContent = message;
+          chatHistory.appendChild(msgDiv);
+          chatHistory.scrollTop = chatHistory.scrollHeight;
+      }
+
+      // Function to send message to backend and handle response
+      async function handleUserMessage(userMessage) {
+          sendMessage(userMessage, true);
+          try {
+              const res = await fetch('http://localhost:5000/chat', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ message: userMessage })
+              });
+              const data = await res.json();
+              sendMessage(data.response, false);
+          } catch (err) {
+              sendMessage('Error: Could not connect to backend.', false);
+          }
+      }
+
+      // Initial prompt input (first message)
+      initialPromptInput.addEventListener('keyup', function(event) {
+          if (event.key === 'Enter' && initialPromptInput.value.trim() !== '') {
+              const userMessage = initialPromptInput.value.trim();
+              body.classList.add('chat-started');
+              initialPromptInput.value = '';
+              handleUserMessage(userMessage);
+          }
+      });
+
+      // Main chat input (subsequent messages)
+      promptInput.addEventListener('keyup', function(event) {
+          if (event.key === 'Enter' && promptInput.value.trim() !== '') {
+              const userMessage = promptInput.value.trim();
+              promptInput.value = '';
+              handleUserMessage(userMessage);
+          }
+      });
+    </script>
 </body>
 </html>
