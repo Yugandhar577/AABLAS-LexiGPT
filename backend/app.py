@@ -12,7 +12,7 @@ def query_ollama(prompt):
     try:
         # Run ollama command and capture output as JSON
         result = subprocess.run(
-            ["ollama", "run", "mistral", prompt],
+            ["ollama", "run", "llama3", prompt],
             capture_output=True,
             text=True
         )
