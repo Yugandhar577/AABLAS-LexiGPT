@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Lawyer Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-KyZXEAg3QhqLMpG8r+Knujsl5/5hb7g8r+Knujsl5/5hb7g8r+Knujsl5/5hb7g8r" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="sidebar-backdrop"></div>
+    <div class="sidebar">
+        <div>
+            <div class="sidebar-top">
+                <div class="chatgpt-header">
+                    <h1>AI Lawyer</h1>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M1.646 6.646a.5.5 0 0 1 .708 0L8 12.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+                    </svg>
+                </div>
+                <div class="sidebar-item sidebar-item-new-chat">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
+                    </svg>
+                    <span>New chat</span>
+                </div>
+                <div class="sidebar-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                    </svg>
+                    <span>Search chats</span>
+                </div>
+                <div class="sidebar-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M2.5 11.5A.5.5 0 0 1 3 11V6a.5.5 0 0 1 1 0v5a.5.5 0 0 1-.5.5zm2-4A.5.5 0 0 1 5 7V6a.5.5 0 0 1 1 0v1a.5.5 0 0 1-.5.5zm2 2A.5.5 0 0 1 7 9V6a.5.5 0 0 1 1 0v3a.5.5 0 0 1-.5.5zm2-2A.5.5 0 0 1 9 7V6a.5.5 0 0 1 1 0v1a.5.5 0 0 1-.5.5zm2 0A.5.5 0 0 1 11 7V6a.5.5 0 0 1 1 0v1a.5.5 0 0 1-.5.5zm2 2A.5.5 0 0 1 13 9V6a.5.5 0 0 1 1 0v3a.5.5 0 0 1-.5.5z"/>
+                    </svg>
+                    <span>Library</span>
+                </div>
+            </div>
+
+            <ul class="chats-list">
+                <li class="chats-list-item active">History</li>
+            </ul>
+
+            <div class="sidebar-bottom">
+                <div class="sidebar-bottom-item">Sign Up</div>
+                <div class="sidebar-bottom-item">Login</div>
+            </div>
+        </div>
+
+        <div class="sidebar-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0"/>
+            </svg>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <div id="initial-content">
+            <div class="central-text">
+                Ready when you are.
+            </div>
+            <div class="prompt-area initial-prompt-area">
+                <input type="text" id="initial-prompt-input" placeholder="Ask anything" class="initial-prompt-input" />
+                <div class="input-icons-wrapper">
+                    <svg class="input-icon" id="initial-upload-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16" title="Upload Document">
+                        <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
+                    </svg>
+                    <svg class="input-icon" id="initial-mic-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M12.738 8.582a.5.5 0 0 0-.214.331c-.114.398-.242.793-.385 1.185a.8.8 0 0 1-.09.219l-.493 1.056a2 2 0 0 1-1.393 1.127L7.545 14h-.05A2 2 0 0 1 5.485 12.91l-.217-.468c-.15-.323-.284-.65-.407-.98a.8.8 0 0 1-.07-.179c-.112-.31-.22-.622-.325-.935l-.044-.123a.5.5 0 0 0-.462-.315H.5a.5.5 0 0 0 0 1H2.15a1.5 1.5 0 0 1 1.488 1.288l.38.818a3 3 0 0 0 2.627 1.666h.05a3 3 0 0 0 2.627-1.666l.38-.818A1.5 1.5 0 0 1 13.85 9h1.65a.5.5 0 0 0 0-1h-2.762z"/>
+                        <path d="M13.298 3.25a.5.5 0 0 0-.616.326L12 5.564v2.09c0 2.859-2.313 5.172-5.172 5.172S1.656 10.513 1.656 7.654v-2.09l-.683-1.99a.5.5 0 0 0-.616-.326.5.5 0 0 0-.326.616l.635 1.847c.105.305.22.618.34.928.146.386.309.778.487 1.168.16.347.332.697.518 1.045a4.174 4.174 0 0 0 .741 1.107 4.544 4.544 0 0 0 1.251 1.002A3.174 3.174 0 0 0 7.828 13c1.786 0 3.235-1.449 3.235-3.235V.5a.5.5 0 0 0-1 0v9.265c0 1.233-1 2.235-2.235 2.235S4.36 10.5 4.36 9.265V.5a.5.5 0 0 0-1 0v9.265c0 1.233-1 2.235-2.235 2.235S-.11 10.5-.11 9.265V.5a.5.5 0 0 0-1 0v9.265a3.235 3.235 0 0 0 3.235 3.235s1.233-1 2.235-2.235V.5a.5.5 0 0 0-1 0v9.265c0 1.233-1 2.235-2.235 2.235S.11 10.5.11 9.265a3.235 3.235 0 0 0 3.235-3.235S.11 3.5.11 2.265a3.235 3.235 0 0 0 3.235-3.235S.11 0 .11 0a.5.5 0 0 0-1 0z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="header-main">
+                <div class="mobile-menu-toggle">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M4 6h16a1 1 0 0 1 0 2H4a1 1 0 0 1 0-2zm0 5h16a1 1 0 0 1 0 2H4a1 1 0 0 1 0-2zm0 5h16a1 1 0 0 1 0 2H4a1 1 0 0 1 0-2z"/>
+                    </svg>
+                </div>
+                <div id="theme-toggle-container">
+                    <button id="theme-toggle">
+                        <svg id="moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M21.73 13.92a.5.5 0 0 0 .15-.47c-.15-.43-.46-.8-.9-.94A10.02 10.02 0 0 1 12 2C6.48 2 2 6.48 2 12c0 5.52 4.48 10 10 10a10.02 10.02 0 0 1 9.88-9.06c.44-.14.75-.51.9-.94a.5.5 0 0 0-.15-.47zM12 20.5c-4.74 0-8.63-3.92-8.52-8.67a8.55 8.55 0 0 0 8.52 8.67z"/>
+                        </svg>
+                        <svg id="sun-icon" class="hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"/>
+                            <path d="M12 23a1 1 0 0 1-1-1v-2a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1zM12 3a1 1 0 0 1-1-1V.99a1 1 0 1 1 2 0v1.01a1 1 0 0 1-1 1zM5.64 19.36a1 1 0 0 1-.71-.29l-1.41-1.41a1 1 0 1 1 1.41-1.41l1.41 1.41a1 1 0 0 1-.7 1.7zM19.36 5.64a1 1 0 0 1-.71-.29l-1.41-1.41a1 1 0 1 1 1.41-1.41l1.41 1.41a1 1 0 0 1-.7 1.7zM23 12a1 1 0 0 1-1 1h-2a1 1 0 1 1 0-2h2a1 1 0 0 1 1 1zM3 12a1 1 0 0 1-1 1H.99a1 1 0 1 1 0-2H2a1 1 0 0 1 1 1zM19.36 19.36a1 1 0 0 1-.7-.29l-1.41-1.41a1 1 0 1 1 1.41-1.41l1.41 1.41a1 1 0 0 1-.7 1.7zM5.64 5.64a1 1 0 0 1-.71-.29l-1.41-1.41a1 1 0 1 1 1.41-1.41l1.41 1.41a1 1 0 0 1-.7 1.7z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="chat-history"></div>
+
+            <div class="prompt-area">
+                <input type="text" id="prompt-input" placeholder="Ask anything" class="prompt-input" />
+                <div class="input-icons-wrapper">
+                    <svg class="input-icon" id="upload-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16" title="Upload Document">
+                        <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
+                    </svg>
+                    <svg class="input-icon" id="mic-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M12.738 8.582a.5.5 0 0 0-.214.331c-.114.398-.242.793-.385 1.185a.8.8 0 0 1-.09.219l-.493 1.056a2 2 0 0 1-1.393 1.127L7.545 14h-.05A2 2 0 0 1 5.485 12.91l-.217-.468c-.15-.323-.284-.65-.407-.98a.8.8 0 0 1-.07-.179c-.112-.31-.22-.622-.325-.935l-.044-.123a.5.5 0 0 0-.462-.315H.5a.5.5 0 0 0 0 1H2.15a1.5 1.5 0 0 1 1.488 1.288l.38.818a3 3 0 0 0 2.627 1.666h.05a3 3 0 0 0 2.627-1.666l.38-.818A1.5 1.5 0 0 1 13.85 9h1.65a.5.5 0 0 0 0-1h-2.762z"/>
+                        <path d="M13.298 3.25a.5.5 0 0 0-.616.326L12 5.564v2.09c0 2.859-2.313 5.172-5.172 5.172S1.656 10.513 1.656 7.654v-2.09l-.683-1.99a.5.5 0 0 0-.616-.326.5.5 0 0 0-.326.616l.635 1.847c.105.305.22.618.34.928.146.386.309.778.487 1.168.16.347.332.697.518 1.045a4.174 4.174 0 0 0 .741 1.107 4.544 4.544 0 0 0 1.251 1.002A3.174 3.174 0 0 0 7.828 13c1.786 0 3.235-1.449 3.235-3.235V.5a.5.5 0 0 0-1 0v9.265c0 1.233-1 2.235-2.235 2.235S4.36 10.5 4.36 9.265V.5a.5.5 0 0 0-1 0v9.265c0 1.233-1 2.235-2.235 2.235S-.11 10.5-.11 9.265V.5a.5.5 0 0 0-1 0v9.265a3.235 3.235 0 0 0 3.235 3.235s1.233-1 2.235-2.235V.5a.5.5 0 0 0-1 0v9.265c0 1.233-1 2.235-2.235 2.235S.11 10.5.11 9.265a3.235 3.235 0 0 0 3.235-3.235S.11 3.5.11 2.265a3.235 3.235 0 0 0 3.235-3.235S.11 0 .11 0a.5.5 0 0 0-1 0z"/>
+                    </svg>
+                </div>
+                <input type="file" id="file-upload-input" accept=".txt,.pdf,.doc,.docx" />
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
