@@ -120,3 +120,59 @@ promptInput.addEventListener('keyup', function(event) {
         handleUserMessage(userMessage);
     }
 });
+
+// Create a new chat
+async function createNewChat(firstMessage) {
+    let res = await fetch("/new_chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: firstMessage })
+    });
+    let data = await res.json();
+    activeSession = data.session_id;
+    await renderChatList();
+    await openChat(activeSession);
+}
+
+// Add message to existing chat
+async function addMessage(role, text) {
+    await fetch("/add_message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: activeSession, role, text })
+    });
+}
+
+// Fetch one chat’s history
+async function openChat(sessionId) {
+    activeSession = sessionId;
+    let res = await fetch(`/get_chat/${sessionId}`);
+    let chat = await res.json();
+
+    let chatArea = document.getElementById("chat-history");
+    chatArea.innerHTML = "";
+    chat.messages.forEach(msg => {
+        let div = document.createElement("div");
+        div.className = msg.role === "user" ? "user-message" : "assistant-message";
+        div.textContent = msg.text;
+        chatArea.appendChild(div);
+    });
+
+    await renderChatList();
+}
+
+// Fetch all chats for sidebar
+async function renderChatList() {
+    let res = await fetch("/list_chats");
+    let sessions = await res.json();
+    let chatsList = document.getElementById("chats-list");
+    chatsList.innerHTML = "";
+    sessions.forEach(sess => {
+        let li = document.createElement("li");
+        li.className = "chats-list-item";
+        if (sess.session_id === activeSession) li.classList.add("active");
+        li.textContent = sess.title;
+        li.onclick = () => openChat(sess.session_id);
+        chatsList.appendChild(li);
+    });
+}
