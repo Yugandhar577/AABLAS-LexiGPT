@@ -1,2 +1,2 @@
 flask
-flask-cors==6.0.1
+flask_cors
