@@ -9,6 +9,7 @@ and enables CORS for frontend access.
 
 from flask import Flask
 from flask_cors import CORS
+import os
 
 # Import routes
 from routes.ollama_routes import bp as chat_bp       # regular Ollama chat route
@@ -16,10 +17,14 @@ from routes.rag_routes import bp as rag_bp           # new RAG query route
 from routes.agent_routes import bp as agent_bp       # agentic planner
 from routes.docgen_routes import bp as docgen_bp     # document generator
 from routes.chat_history import bp as history_bp     # chat session CRUD
+from routes.auth_routes import bp as auth_bp         # authentication routes
 
 def create_app():
     """Flask app factory."""
     app = Flask(__name__)
+    # Ensure a SECRET_KEY is set for JWT signing; in production set via environment
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
+    app.config['JWT_EXP_MINUTES'] = int(os.environ.get('JWT_EXP_MINUTES', '1440'))
     CORS(app)  # Enable cross-origin requests for frontend
 
     # Register routes
@@ -28,6 +33,7 @@ def create_app():
     app.register_blueprint(agent_bp)
     app.register_blueprint(docgen_bp)
     app.register_blueprint(history_bp)
+    app.register_blueprint(auth_bp)
 
     return app
 

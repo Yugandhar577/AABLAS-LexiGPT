@@ -20,6 +20,357 @@ const apiUrl = (path) => `${API_BASE}${path}`;
 let activeSession = null;
 let STREAM_MODE = false;
 const sidebarSearch = document.getElementById('sidebar-search-input');
+let authToken = localStorage.getItem('authToken') || null;
+let currentUser = null;
+let refreshToken = localStorage.getItem('refreshToken') || null;
+
+// Auth controls
+const loginBtn = document.getElementById('login-btn');
+const registerBtn = document.getElementById('register-btn');
+const settingsBtn = document.getElementById('settings-btn');
+const profileBtn = document.getElementById('profile-btn');
+
+if (loginBtn) loginBtn.addEventListener('click', showLoginModal);
+if (registerBtn) registerBtn.addEventListener('click', showRegisterModal);
+// Open settings page in main view instead of modal
+if (settingsBtn) settingsBtn.addEventListener('click', showSettingsPage);
+if (profileBtn) profileBtn.addEventListener('click', () => document.getElementById('profile-modal').classList.remove('hidden'));
+
+// Sidebar auth buttons (mirror actions so they work from sidebar)
+const sidebarLoginBtn = document.getElementById('sidebar-login-btn');
+const sidebarRegisterBtn = document.getElementById('sidebar-register-btn');
+const sidebarProfileBtn = document.getElementById('sidebar-profile-btn');
+const sidebarSettingsBtn = document.getElementById('sidebar-settings-btn');
+const sidebarLogoutBtn = document.getElementById('sidebar-logout-btn');
+
+if (sidebarLoginBtn) sidebarLoginBtn.addEventListener('click', showLoginModal);
+if (sidebarRegisterBtn) sidebarRegisterBtn.addEventListener('click', showRegisterModal);
+if (sidebarSettingsBtn) sidebarSettingsBtn.addEventListener('click', showSettingsPage);
+if (sidebarProfileBtn) sidebarProfileBtn.addEventListener('click', () => { if (profileBtn) profileBtn.click(); else document.getElementById('profile-modal').classList.remove('hidden'); });
+if (sidebarLogoutBtn) sidebarLogoutBtn.addEventListener('click', () => { const hdr = document.getElementById('logout-btn'); if (hdr) hdr.click(); });
+
+async function initAuth() {
+    if (!authToken) return updateAuthUI();
+    try {
+        const res = await fetch(apiUrl('/api/auth/me'), { headers: { 'Authorization': 'Bearer ' + authToken } });
+        if (!res.ok) { authToken = null; localStorage.removeItem('authToken'); return updateAuthUI(); }
+        const d = await res.json();
+        if (d && d.user) {
+            currentUser = d.user;
+            updateAuthUI();
+        }
+    } catch (e) {
+        console.warn('Auth init failed', e);
+        authToken = null; localStorage.removeItem('authToken');
+        updateAuthUI();
+    }
+}
+
+function updateAuthUI() {
+    if (currentUser) {
+        if (loginBtn) loginBtn.style.display = 'none';
+        if (registerBtn) registerBtn.style.display = 'none';
+        if (settingsBtn) settingsBtn.style.display = 'inline-flex';
+        // show header user
+        const nameEl = document.getElementById('header-user-name');
+        const avatarEl = document.getElementById('header-user-avatar');
+        const logoutBtn = document.getElementById('logout-btn');
+        if (nameEl) { nameEl.textContent = currentUser.display_name || currentUser.username; nameEl.style.display = '' }
+        if (avatarEl && currentUser.avatar_url) { avatarEl.src = (API_BASE || '') + currentUser.avatar_url; avatarEl.style.display = '' }
+        if (logoutBtn) logoutBtn.style.display = 'inline-flex';
+        // sidebar mirrors
+        const sLogin = document.getElementById('sidebar-login-btn');
+        const sReg = document.getElementById('sidebar-register-btn');
+        const sProfile = document.getElementById('sidebar-profile-btn');
+        const sSettings = document.getElementById('sidebar-settings-btn');
+        const sLogout = document.getElementById('sidebar-logout-btn');
+        if (sLogin) sLogin.style.display = 'none';
+        if (sReg) sReg.style.display = 'none';
+        if (sProfile) sProfile.style.display = '';
+        if (sSettings) sSettings.style.display = '';
+        if (sLogout) sLogout.style.display = '';
+    } else {
+        if (loginBtn) loginBtn.style.display = 'inline-flex';
+        if (registerBtn) registerBtn.style.display = 'inline-flex';
+        if (settingsBtn) settingsBtn.style.display = 'none';
+        const nameEl = document.getElementById('header-user-name');
+        const avatarEl = document.getElementById('header-user-avatar');
+        const logoutBtn = document.getElementById('logout-btn');
+        if (nameEl) nameEl.style.display = 'none';
+        if (avatarEl) { avatarEl.src = ''; avatarEl.style.display = 'none'; }
+        if (logoutBtn) logoutBtn.style.display = 'none';
+        const sLogin = document.getElementById('sidebar-login-btn');
+        const sReg = document.getElementById('sidebar-register-btn');
+        const sProfile = document.getElementById('sidebar-profile-btn');
+        const sSettings = document.getElementById('sidebar-settings-btn');
+        const sLogout = document.getElementById('sidebar-logout-btn');
+        if (sLogin) sLogin.style.display = '';
+        if (sReg) sReg.style.display = '';
+        if (sProfile) sProfile.style.display = 'none';
+        if (sSettings) sSettings.style.display = 'none';
+        if (sLogout) sLogout.style.display = 'none';
+    }
+}
+
+function showLoginModal() {
+    showAuthModal('login');
+}
+
+function showRegisterModal() {
+    showAuthModal('register');
+}
+
+function showAuthModal(mode = 'login') {
+    const overlay = document.getElementById('modal-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('hidden');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    if (mode === 'login') { loginForm.classList.remove('hidden'); registerForm.classList.add('hidden'); }
+    else { registerForm.classList.remove('hidden'); loginForm.classList.add('hidden'); }
+}
+
+function hideAuthModal() {
+    const overlay = document.getElementById('modal-overlay');
+    if (!overlay) return;
+    overlay.classList.add('hidden');
+}
+
+// Modal wiring
+document.addEventListener('DOMContentLoaded', () => {
+    const overlay = document.getElementById('modal-overlay');
+    const closeBtn = document.getElementById('modal-close');
+    const showLogin = document.getElementById('show-login');
+    const showRegister = document.getElementById('show-register');
+    const loginSubmit = document.getElementById('login-submit');
+    const registerSubmit = document.getElementById('register-submit');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    if (closeBtn) closeBtn.addEventListener('click', hideAuthModal);
+    if (overlay) overlay.addEventListener('click', (e) => { if (e.target === overlay) hideAuthModal(); });
+    if (showLogin) showLogin.addEventListener('click', () => showAuthModal('login'));
+    if (showRegister) showRegister.addEventListener('click', () => showAuthModal('register'));
+
+    if (loginSubmit) loginSubmit.addEventListener('click', async () => {
+        const u = document.getElementById('login-username').value.trim();
+        const p = document.getElementById('login-password').value.trim();
+        if (!u || !p) return alert('Enter username and password');
+        try {
+            const res = await fetch(apiUrl('/api/auth/login'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p }) });
+            const d = await res.json();
+            if (!res.ok) return alert(d.error || 'Login failed');
+            if (d.token) {
+                authToken = d.token;
+                localStorage.setItem('authToken', authToken);
+                if (d.refresh_token) { refreshToken = d.refresh_token; localStorage.setItem('refreshToken', refreshToken); }
+                currentUser = d.user;
+                updateAuthUI();
+                hideAuthModal();
+            }
+        } catch (e) { console.error(e); alert('Login failed'); }
+    });
+
+    if (registerSubmit) registerSubmit.addEventListener('click', async () => {
+        const u = document.getElementById('reg-username').value.trim();
+        const p = document.getElementById('reg-password').value.trim();
+        const dn = document.getElementById('reg-display').value.trim();
+        if (!u || !p) return alert('Choose username and password');
+        try {
+            const res = await fetch(apiUrl('/api/auth/register'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p, display_name: dn }) });
+            const d = await res.json();
+            if (!res.ok) return alert(d.error || 'Registration failed');
+            if (d.token) {
+                authToken = d.token;
+                localStorage.setItem('authToken', authToken);
+                if (d.refresh_token) { refreshToken = d.refresh_token; localStorage.setItem('refreshToken', refreshToken); }
+                currentUser = d.user;
+                updateAuthUI();
+                hideAuthModal();
+            }
+        } catch (e) { console.error(e); alert('Registration failed'); }
+    });
+
+    if (logoutBtn) logoutBtn.addEventListener('click', async () => {
+        try {
+            const body = refreshToken ? { refresh_token: refreshToken } : {};
+            const res = await fetch(apiUrl('/api/auth/logout'), { method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            if (res.ok) {
+                authToken = null; localStorage.removeItem('authToken'); currentUser = null; updateAuthUI();
+                refreshToken = null; localStorage.removeItem('refreshToken');
+                alert('Logged out');
+            } else {
+                alert('Logout failed');
+            }
+        } catch (e) { console.error(e); alert('Logout failed'); }
+    });
+});
+
+// Profile modal wiring
+document.addEventListener('DOMContentLoaded', () => {
+    const profileBtn = document.getElementById('profile-btn');
+    const profileModal = document.getElementById('profile-modal');
+    const profileClose = document.getElementById('profile-close');
+    const profileSave = document.getElementById('profile-save');
+    const profileUpload = document.getElementById('profile-upload');
+    const profileDisplay = document.getElementById('profile-display');
+    const profileAvatarPreview = document.getElementById('profile-avatar-preview');
+
+    if (profileBtn) profileBtn.addEventListener('click', async () => {
+        // ensure we have auth and currentUser
+        if (!currentUser) {
+            alert('Please login first');
+            return;
+        }
+        // fill fields
+        profileDisplay.value = currentUser.display_name || currentUser.username;
+        if (currentUser.avatar_url) { profileAvatarPreview.src = (API_BASE || '') + currentUser.avatar_url; profileAvatarPreview.style.display = ''; } else { profileAvatarPreview.style.display = 'none'; }
+        profileModal.classList.remove('hidden');
+    });
+    if (profileClose) profileClose.addEventListener('click', () => profileModal.classList.add('hidden'));
+    if (profileModal) profileModal.addEventListener('click', (e) => { if (e.target === profileModal) profileModal.classList.add('hidden'); });
+
+    if (profileUpload) profileUpload.addEventListener('click', () => {
+        const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
+        input.onchange = async (ev) => {
+            const file = ev.target.files[0]; if (!file) return;
+            const fd = new FormData(); fd.append('avatar', file);
+            try {
+                // ensure token
+                const ok = await ensureAuth(); if (!ok) return alert('Not authenticated');
+                const res = await fetch(apiUrl('/api/auth/upload-avatar'), { method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken }, body: fd });
+                if (!res.ok) return alert('Upload failed');
+                const d = await res.json();
+                if (d.avatar_url) {
+                    currentUser.avatar_url = d.avatar_url;
+                    profileAvatarPreview.src = (API_BASE || '') + d.avatar_url; profileAvatarPreview.style.display = '';
+                    // update header
+                    const headerAvatar = document.getElementById('header-user-avatar'); if (headerAvatar) { headerAvatar.src = (API_BASE || '') + d.avatar_url; headerAvatar.style.display = ''; }
+                    alert('Avatar updated');
+                }
+            } catch (e) { console.error(e); alert('Upload failed'); }
+        };
+        input.click();
+    });
+
+    if (profileSave) profileSave.addEventListener('click', async () => {
+        const newName = profileDisplay.value.trim();
+        if (!newName) return alert('Enter a display name');
+        try {
+            const ok = await ensureAuth(); if (!ok) return alert('Not authenticated');
+            const res = await fetchWithAuth(apiUrl('/api/auth/update-profile'), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ display_name: newName }) });
+            if (!res.ok) { const d = await res.json().catch(()=>({})); return alert(d.error || 'Save failed'); }
+            const d = await res.json();
+            if (d.user) { currentUser = d.user; updateAuthUI(); profileModal.classList.add('hidden'); alert('Profile updated'); }
+        } catch (e) { console.error(e); alert('Update failed'); }
+    });
+});
+
+// Settings page actions
+document.addEventListener('DOMContentLoaded', () => {
+    const settingsBack = document.getElementById('settings-back');
+    const settingsSave = document.getElementById('settings-save-profile');
+    const settingsUpload = document.getElementById('settings-upload-avatar');
+    const settingsStream = document.getElementById('settings-stream-default');
+    const logoutAllBtn = document.getElementById('settings-logout-all');
+
+    if (settingsBack) settingsBack.addEventListener('click', () => hideSettingsPage());
+    if (settingsStream) settingsStream.addEventListener('change', () => {
+        localStorage.setItem('STREAM_MODE_DEFAULT', settingsStream.checked ? 'true' : 'false');
+    });
+
+    if (settingsSave) settingsSave.addEventListener('click', async () => {
+        const newName = document.getElementById('settings-display').value.trim();
+        if (!newName) return alert('Enter a display name');
+        const ok = await ensureAuth(); if (!ok) return alert('Not authenticated');
+        try {
+            const res = await fetchWithAuth(apiUrl('/api/auth/update-profile'), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ display_name: newName }) });
+            if (!res.ok) { const d = await res.json().catch(()=>({})); return alert(d.error || 'Save failed'); }
+            const d = await res.json(); currentUser = d.user; updateAuthUI(); alert('Saved');
+        } catch (e) { console.error(e); alert('Save failed'); }
+    });
+
+    if (settingsUpload) settingsUpload.addEventListener('click', () => {
+        const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
+        input.onchange = async (ev) => {
+            const file = ev.target.files[0]; if (!file) return;
+            const fd = new FormData(); fd.append('avatar', file);
+            const ok = await ensureAuth(); if (!ok) return alert('Not authenticated');
+            try {
+                const res = await fetch(apiUrl('/api/auth/upload-avatar'), { method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken }, body: fd });
+                if (!res.ok) return alert('Upload failed');
+                const d = await res.json(); if (d.avatar_url) { currentUser.avatar_url = d.avatar_url; updateAuthUI(); alert('Avatar updated'); }
+            } catch (e) { console.error(e); alert('Upload failed'); }
+        };
+        input.click();
+    });
+
+    if (logoutAllBtn) logoutAllBtn.addEventListener('click', async () => {
+        if (!confirm('Logout from all sessions?')) return;
+        const ok = await ensureAuth(); if (!ok) return alert('Not authenticated');
+        try {
+            const res = await fetchWithAuth(apiUrl('/api/auth/logout-all'), { method: 'POST' });
+            if (res.ok) { authToken = null; refreshToken = null; localStorage.removeItem('authToken'); localStorage.removeItem('refreshToken'); currentUser = null; updateAuthUI(); alert('Logged out from all sessions'); hideSettingsPage(); }
+            else { alert('Logout all failed'); }
+        } catch (e) { console.error(e); alert('Logout all failed'); }
+    });
+});
+
+// Helper: ensure we have a valid authToken, try refresh if needed
+async function ensureAuth() {
+    if (authToken) return true;
+    if (!refreshToken) return false;
+    try {
+        const res = await fetch(apiUrl('/api/auth/refresh'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: refreshToken }) });
+        if (!res.ok) { refreshToken = null; localStorage.removeItem('refreshToken'); return false; }
+        const d = await res.json();
+        if (d && d.token) { authToken = d.token; localStorage.setItem('authToken', authToken); return true; }
+    } catch (e) { console.warn('refresh failed', e); }
+    return false;
+}
+
+// fetch wrapper that automatically attempts refresh on 401 once
+async function fetchWithAuth(url, opts = {}) {
+    opts.headers = opts.headers || {};
+    if (authToken) opts.headers['Authorization'] = 'Bearer ' + authToken;
+    let res = await fetch(url, opts);
+    if (res.status === 401 && refreshToken) {
+        const ok = await ensureAuth();
+        if (ok) {
+            opts.headers['Authorization'] = 'Bearer ' + authToken;
+            res = await fetch(url, opts);
+        }
+    }
+    return res;
+}
+
+function showSettingsModal() {
+    // Simple settings dialog using prompt for avatar upload via file input
+    // open settings page in main content
+    showSettingsPage();
+}
+
+function showSettingsPage() {
+    // populate fields
+    const settings = document.getElementById('settings-page');
+    if (!settings) return;
+    // hide chat view elements to show settings instead
+    settings.classList.remove('hidden');
+    document.querySelector('.prompt-area').style.display = 'none';
+    const chatHist = document.getElementById('chat-history'); if (chatHist) chatHist.style.display = 'none';
+    // fill current values
+    const disp = document.getElementById('settings-display');
+    if (disp && currentUser) disp.value = currentUser.display_name || currentUser.username;
+    const streamChk = document.getElementById('settings-stream-default');
+    if (streamChk) streamChk.checked = !!(localStorage.getItem('STREAM_MODE_DEFAULT') === 'true');
+}
+
+function hideSettingsPage() {
+    const settings = document.getElementById('settings-page');
+    if (!settings) return;
+    settings.classList.add('hidden');
+    document.querySelector('.prompt-area').style.display = '';
+    const chatHist = document.getElementById('chat-history'); if (chatHist) chatHist.style.display = '';
+}
 
 // Sidebar toggle for desktop
 sidebarToggle.addEventListener('click', function() {
@@ -113,6 +464,13 @@ function sendMessage(message, isUser = true, opts = {}) {
     // If caller provided an avatar URL, use it; otherwise use initial
     if (opts.avatarUrl) {
         avatar.style.backgroundImage = `url('${opts.avatarUrl}')`;
+        avatar.style.backgroundSize = 'cover';
+        avatar.style.backgroundPosition = 'center';
+        avatar.textContent = '';
+    } else if (isUser && currentUser && currentUser.avatar_url) {
+        // use logged-in user's avatar
+        const full = (API_BASE || '') + currentUser.avatar_url;
+        avatar.style.backgroundImage = `url('${full}')`;
         avatar.style.backgroundSize = 'cover';
         avatar.style.backgroundPosition = 'center';
         avatar.textContent = '';
@@ -513,6 +871,8 @@ if (sidebarSearch) {
 }
 
 renderChatList();
+// Initialize authentication state (loads current user if token present)
+initAuth();
 
 // Sidebar action handlers
 const saveBtn = document.getElementById('save-chat');
