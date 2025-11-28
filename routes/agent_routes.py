@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from services.agent_services import plan_and_run
 
-bp = Blueprint("agent", __name__, url_prefix="/agent")
+bp = Blueprint("agent", __name__, url_prefix="/api/agent")
 
 
 @bp.route("/plan-run", methods=["POST"])

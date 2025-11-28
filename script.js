@@ -12,11 +12,22 @@ const initialUploadIcon = document.getElementById('initial-upload-icon');
 const themeToggle = document.getElementById('theme-toggle');
 const moonIcon = document.getElementById('moon-icon');
 const sunIcon = document.getElementById('sun-icon');
+const chatsList = document.getElementById('chats-list');
+
+const isHttpOrigin = window.location.origin.startsWith('http');
+const API_BASE = window.__LEXIGPT_API__ || (isHttpOrigin ? '' : 'http://localhost:5000');
+const apiUrl = (path) => `${API_BASE}${path}`;
+let activeSession = null;
 
 // Sidebar toggle for desktop
 sidebarToggle.addEventListener('click', function() {
     sidebar.classList.toggle('expanded');
 });
+
+const newChatButton = document.querySelector('.sidebar-item-new-chat');
+if (newChatButton) {
+    newChatButton.addEventListener('click', startNewChat);
+}
 
 // Sidebar toggle for mobile
 mobileMenuToggle.addEventListener('click', function() {
@@ -48,7 +59,7 @@ fileUploadInput.addEventListener('change', (event) => {
         }
 
         const uploadMessage = `User has uploaded a document: ${file.name}`;
-        sendMessage(uploadMessage);
+        handleUserMessage(uploadMessage);
         fileUploadInput.value = '';
     }
 });
@@ -86,18 +97,34 @@ function sendMessage(message, isUser = true) {
     chatHistory.scrollTop = chatHistory.scrollHeight;
 }
 
+async function startNewChat() {
+    activeSession = null;
+    chatHistory.innerHTML = '';
+    body.classList.add('chat-started');
+    await renderChatList();
+}
+
 // Function to send message to backend and handle response
 async function handleUserMessage(userMessage) {
+    body.classList.add('chat-started');
     sendMessage(userMessage, true);
     try {
-        const res = await fetch("http://localhost:5000/api/chat", {
+        const res = await fetch(apiUrl("/api/chat"), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: userMessage })
+            body: JSON.stringify({ message: userMessage, session_id: activeSession })
         });
         const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.error || 'Chat request failed');
+        }
+        if (data.session_id) {
+            activeSession = data.session_id;
+        }
         sendMessage(data.response, false);
+        await renderChatList();
     } catch (err) {
+        console.error(err);
         sendMessage('Error: Could not connect to backend.', false);
     }
 }
@@ -121,41 +148,17 @@ promptInput.addEventListener('keyup', function(event) {
     }
 });
 
-// Create a new chat
-async function createNewChat(firstMessage) {
-    let res = await fetch("/new_chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: firstMessage })
-    });
-    let data = await res.json();
-    activeSession = data.session_id;
-    await renderChatList();
-    await openChat(activeSession);
-}
-
-// Add message to existing chat
-async function addMessage(role, text) {
-    await fetch("/add_message", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: activeSession, role, text })
-    });
-}
-
 // Fetch one chat’s history
 async function openChat(sessionId) {
     activeSession = sessionId;
-    let res = await fetch(`/get_chat/${sessionId}`);
+    let res = await fetch(apiUrl(`/api/chats/${sessionId}`));
+    if (!res.ok) return;
     let chat = await res.json();
 
-    let chatArea = document.getElementById("chat-history");
-    chatArea.innerHTML = "";
+    chatHistory.innerHTML = "";
+    body.classList.add('chat-started');
     chat.messages.forEach(msg => {
-        let div = document.createElement("div");
-        div.className = msg.role === "user" ? "user-message" : "assistant-message";
-        div.textContent = msg.text;
-        chatArea.appendChild(div);
+        sendMessage(msg.text, msg.role === "user");
     });
 
     await renderChatList();
@@ -163,16 +166,22 @@ async function openChat(sessionId) {
 
 // Fetch all chats for sidebar
 async function renderChatList() {
-    let res = await fetch("/list_chats");
-    let sessions = await res.json();
-    let chatsList = document.getElementById("chats-list");
-    chatsList.innerHTML = "";
-    sessions.forEach(sess => {
-        let li = document.createElement("li");
-        li.className = "chats-list-item";
-        if (sess.session_id === activeSession) li.classList.add("active");
-        li.textContent = sess.title;
-        li.onclick = () => openChat(sess.session_id);
-        chatsList.appendChild(li);
-    });
+    try {
+        let res = await fetch(apiUrl("/api/chats"));
+        if (!res.ok) return;
+        let sessions = await res.json();
+        chatsList.innerHTML = "";
+        sessions.forEach(sess => {
+            let li = document.createElement("li");
+            li.className = "chats-list-item";
+            if (sess.session_id === activeSession) li.classList.add("active");
+            li.textContent = sess.title;
+            li.onclick = () => openChat(sess.session_id);
+            chatsList.appendChild(li);
+        });
+    } catch (err) {
+        console.error("Unable to load chats", err);
+    }
 }
+
+renderChatList();

@@ -1,61 +1,38 @@
-# from flask import Flask, request, jsonify
-# import json, os, time
+from flask import Blueprint, jsonify, request
 
-# app = Flask(__name__)
-# CHAT_FILE = "chat_history.json"
+from services import chat_history
 
-# # Helper to load/save
-# def load_chats():
-#     if not os.path.exists(CHAT_FILE):
-#         return {}
-#     with open(CHAT_FILE, "r") as f:
-#         return json.load(f)
+bp = Blueprint("chat_history", __name__, url_prefix="/api/chats")
 
-# def save_chats(chats):
-#     with open(CHAT_FILE, "w") as f:
-#         json.dump(chats, f, indent=4)
 
-# @app.route("/new_chat", methods=["POST"])
-# def new_chat():
-#     data = request.json
-#     first_message = data.get("message", "")
-#     session_id = f"session_{int(time.time())}"
-#     chats = load_chats()
-#     chats[session_id] = {
-#         "title": first_message[:25] + "...",
-#         "messages": [{"role": "user", "text": first_message}]
-#     }
-#     save_chats(chats)
-#     return jsonify({"session_id": session_id})
+@bp.route("", methods=["GET"])
+def list_chats():
+    return jsonify(chat_history.list_sessions())
 
-# @app.route("/add_message", methods=["POST"])
-# def add_message():
-#     data = request.json
-#     session_id = data["session_id"]
-#     role = data["role"]
-#     text = data["text"]
 
-#     chats = load_chats()
-#     if session_id not in chats:
-#         return jsonify({"error": "session not found"}), 404
-#     chats[session_id]["messages"].append({"role": role, "text": text})
-#     save_chats(chats)
-#     return jsonify({"status": "ok"})
+@bp.route("", methods=["POST"])
+def create_chat():
+    data = request.get_json(force=True) or {}
+    title = data.get("title") or data.get("message") or "New chat"
+    message = data.get("message")
+    session_id = chat_history.create_session(title=title, first_message=message)
+    return jsonify({"session_id": session_id})
 
-# @app.route("/get_chat/<session_id>", methods=["GET"])
-# def get_chat(session_id):
-#     chats = load_chats()
-#     if session_id not in chats:
-#         return jsonify({"error": "not found"}), 404
-#     return jsonify(chats[session_id])
 
-# @app.route("/list_chats", methods=["GET"])
-# def list_chats():
-#     chats = load_chats()
-#     return jsonify([
-#         {"session_id": sid, "title": data["title"]}
-#         for sid, data in chats.items()
-#     ])
+@bp.route("/<session_id>", methods=["GET"])
+def get_chat(session_id: str):
+    session = chat_history.get_session(session_id)
+    if not session:
+        return jsonify({"error": "session not found"}), 404
+    return jsonify(session)
 
-# if __name__ == "__main__":
-#     app.run(debug=True)
+
+@bp.route("/<session_id>/messages", methods=["POST"])
+def add_message(session_id: str):
+    data = request.get_json(force=True) or {}
+    role = data.get("role")
+    text = data.get("text", "")
+    if role not in {"user", "assistant"} or not text:
+        return jsonify({"error": "role/text required"}), 400
+    chat_history.append_message(session_id, role, text)
+    return jsonify({"status": "ok"})

@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from services.ollama_services import llm_chat
 from rag.retriever import Retriever
-# from services.docgen_service import generate_document
+from services.docgen_services import generate_document
 from utils.prompts import PLANNER_SYS_PROMPT, EVALUATOR_SYS_PROMPT
 
 # Tool registry: name -> callable
@@ -47,23 +47,23 @@ RETRIEVER = Retriever()  # local retriever; uses vector DB if configured
 def _tool_rag_search(args: Dict[str, Any]) -> Dict[str, Any]:
     q = args.get("query", "")
     hits = RETRIEVER.search(q, top_k=args.get("top_k", 3))
-    return {"ok": True, "output": hits, "logs": f"returned {len(hits)} hits"}
+    serialised = [hit.__dict__ for hit in hits]
+    return {"ok": True, "output": serialised, "logs": f"returned {len(hits)} hits"}
 
 
-# def _tool_doc_generate(args: Dict[str, Any]) -> Dict[str, Any]:
-#     # generate_document returns text or dict
-#     try:
-#         doc = generate_document(args.get("template"), args.get("fields", {}))
-#         return {"ok": True, "output": doc, "logs": "generated document"}
-#     except Exception as e:
-#         return {"ok": False, "output": None, "logs": str(e)}
+def _tool_doc_generate(args: Dict[str, Any]) -> Dict[str, Any]:
+    try:
+        doc = generate_document(args.get("template", "nda"), args.get("fields", {}))
+        return {"ok": True, "output": doc, "logs": "generated document"}
+    except Exception as e:
+        return {"ok": False, "output": None, "logs": str(e)}
 
 
 TOOL_MAP = {
     "read_file": _tool_read_file,
     "regex_extract": _tool_regex_extract,
     "rag_search": _tool_rag_search,
-    # "doc_generate": _tool_doc_generate,
+    "doc_generate": _tool_doc_generate,
 }
 
 

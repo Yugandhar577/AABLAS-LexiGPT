@@ -1,64 +1,21 @@
-# rag/rag_pipeline.py
 """
-RAG pipeline using ChromaDB (retriever) + Ollama (Llama 3 model)
+rag/rag_pipeline.py
+RAG pipeline helpers shared by the Flask routes and services.
 """
 
-from rag.retriever import retrieve_from_chroma
-import subprocess
-from config import OLLAMA_MODEL
+from __future__ import annotations
+
+from typing import List
+
+from .retriever import Retriever, RetrieverResult
+
+_RETRIEVER = Retriever()
 
 
-def query_ollama(prompt: str):
-    """
-    Calls Ollama locally with the given prompt and returns the model's response.
-    """
-    try:
-        result = subprocess.run(
-            ["ollama", "run", OLLAMA_MODEL, prompt],
-            capture_output=True,
-            text=True
-        )
-        return result.stdout.strip()
-    except Exception as e:
-        return f"Error querying Ollama: {e}"
-
-
-def generate_rag_response(question: str, n_results: int = 3):
-    """
-    Main RAG logic:
-    1. Retrieves top matching context from Chroma
-    2. Builds a contextual prompt
-    3. Sends prompt to Ollama model
-    4. Returns the model's grounded answer
-    """
-    # Step 1: Retrieve from Chroma
-    context, raw_results = retrieve_from_chroma(question, n_results=n_results)
-
-    # Step 2: Construct grounded prompt
-    prompt = f"""
-You are a legal AI assistant trained on Indian Motor Vehicle laws.
-
-Use the following context from the official legal database to answer the question.
-Be precise, factual, and cite relevant sections when possible.
-If the answer cannot be found, say "The context does not specify that information."
-
----------------------
-CONTEXT:
-{context}
----------------------
-
-QUESTION:
-{question}
-
-FINAL ANSWER (cite section titles if relevant):
-    """
-
-    # Step 3: Query Ollama
-    answer = query_ollama(prompt)
-
-    # Step 4: Return structured response
-    return {
-        "question": question,
-        "answer": answer,
-        "context": context
-    }
+def get_relevant_context(query: str, top_k: int = 3) -> List[str]:
+    """Return formatted context snippets for the given query."""
+    hits: List[RetrieverResult] = _RETRIEVER.search(query, top_k=top_k)
+    formatted = []
+    for idx, hit in enumerate(hits, start=1):
+        formatted.append(f"[{idx}] {hit.title}\n{hit.content}")
+    return formatted

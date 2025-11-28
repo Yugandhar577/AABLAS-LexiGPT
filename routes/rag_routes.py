@@ -3,7 +3,7 @@
 from flask import Blueprint, request, jsonify
 from services.ollama_services import query_ollama_with_rag
 
-bp = Blueprint("rag", __name__)
+bp = Blueprint("rag", __name__, url_prefix="/api")
 
 @bp.route("/rag-query", methods=["POST"])
 def rag_query():
