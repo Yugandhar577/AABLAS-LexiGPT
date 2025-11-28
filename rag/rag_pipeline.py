@@ -5,17 +5,28 @@ RAG pipeline helpers shared by the Flask routes and services.
 
 from __future__ import annotations
 
-from typing import List
+from typing import List, Dict
 
 from .retriever import Retriever, RetrieverResult
 
 _RETRIEVER = Retriever()
 
 
-def get_relevant_context(query: str, top_k: int = 3) -> List[str]:
-    """Return formatted context snippets for the given query."""
+def get_relevant_context(query: str, top_k: int = 3) -> List[Dict]:
+    """Return structured context snippets for the given query.
+
+    Each entry is a dict containing: id (int), title, content, score, snippet.
+    """
     hits: List[RetrieverResult] = _RETRIEVER.search(query, top_k=top_k)
-    formatted = []
+    results: List[Dict] = []
     for idx, hit in enumerate(hits, start=1):
-        formatted.append(f"[{idx}] {hit.title}\n{hit.content}")
-    return formatted
+        # Create a short snippet from the content for prompting and display
+        snippet = hit.content[:400]
+        results.append({
+            "id": idx,
+            "title": hit.title,
+            "content": hit.content,
+            "score": hit.score,
+            "snippet": snippet,
+        })
+    return results

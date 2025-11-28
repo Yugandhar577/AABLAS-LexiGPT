@@ -1,8 +1,12 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, Response
 
 from config import DEFAULT_CHAT_SYSTEM_PROMPT
 from services import chat_history
-from services.ollama_services import llm_chat, query_ollama_with_rag
+from services.ollama_services import llm_chat, query_ollama_with_rag, stream_llm_chat
+from uuid import uuid4
+
+# In-memory registry for pending streams. Structure: { stream_id: { message, session_id, history } }
+_STREAM_REGISTRY = {}
 
 bp = Blueprint("chat", __name__, url_prefix="/api")
 
@@ -13,6 +17,7 @@ def chat():
     user_message = (data.get("message") or "").strip()
     session_id = data.get("session_id")
     mode = data.get("mode", "chat")
+    explain = data.get("explain", False)
 
     if not user_message:
         return jsonify({"error": "message is required"}), 400
@@ -39,6 +44,58 @@ def chat():
 
     chat_history.append_message(session_id, "assistant", bot_response)
 
+    # If caller requested an explanation/chain-of-thought, try to generate
+    # a structured explanation for the last assistant message and return it.
+    if explain:
+        # Find the last assistant message in session history
+        session = chat_history.get_session(session_id)
+        assistant_text = ""
+        if session:
+            for m in reversed(session.get("messages", [])):
+                if m.get("role") == "assistant":
+                    assistant_text = m.get("text") or m.get("content") or ""
+                    break
+
+        if assistant_text:
+            # Provide context docs (if any) so the explainer can reference sources
+            context_docs = rag_payload.get("context") if isinstance(rag_payload, dict) else None
+            context_block = ""
+            if context_docs:
+                try:
+                    # context_docs is expected to be a list of dicts with id/title/snippet
+                    context_block = "\n\n".join([f"[{d.get('id')}] {d.get('title')}\n{d.get('snippet')}" for d in context_docs])
+                except Exception:
+                    context_block = ""
+
+            expl_prompt = (
+                "You are given an assistant answer and the supporting context documents (if any). Return a concise, human-readable "
+                "step-by-step chain of thought explaining how the assistant arrived at the answer, and list explicit sources used. "
+                "The response MUST be a JSON object with keys: chain_of_thought (string), sources (array of {id, title, snippet}). "
+                "Do not add extra commentary outside the JSON."
+                f"\n\nContext:\n{context_block}\n\nAssistant answer:\n{assistant_text}\n\nJSON:\n"
+            )
+            try:
+                expl_text = llm_chat(None, expl_prompt)
+                # try to parse JSON from the model output; fall back to raw text
+                import json as _json
+
+                parsed = None
+                try:
+                    parsed = _json.loads(expl_text)
+                except Exception:
+                    # attempt to find a JSON block in the output
+                    start = expl_text.find('{')
+                    end = expl_text.rfind('}')
+                    if start != -1 and end != -1 and end > start:
+                        try:
+                            parsed = _json.loads(expl_text[start : end + 1])
+                        except Exception:
+                            parsed = {"raw": expl_text}
+
+                return jsonify({"response": bot_response, "session_id": session_id, "context": rag_payload.get("context"), "explain": parsed})
+            except Exception:
+                return jsonify({"response": bot_response, "session_id": session_id, "context": rag_payload.get("context"), "explain": None})
+
     return jsonify(
         {
             "response": bot_response,
@@ -46,3 +103,114 @@ def chat():
             "context": rag_payload.get("context"),
         }
     )
+
+
+
+
+@bp.route("/chat/stream", methods=["POST"])
+def chat_stream():
+    """Stream assistant tokens back to the browser as server-sent events (SSE).
+
+    Clients should POST JSON { message, session_id? } and will receive a
+    `text/event-stream` where each `data:` line contains a token chunk.
+    After the stream completes a final JSON event with `event: done` is sent.
+    """
+    data = request.get_json(force=True) or {}
+    user_message = (data.get("message") or "").strip()
+    session_id = data.get("session_id")
+
+    if not user_message:
+        return jsonify({"error": "message is required"}), 400
+
+    history = []
+    if session_id:
+        session = chat_history.get_session(session_id)
+        if session:
+            history = session.get("messages", [])
+
+    session_id = chat_history.ensure_session(session_id, user_message[:60])
+    chat_history.append_message(session_id, "user", user_message)
+
+    def generate():
+        full = ""
+        try:
+            for chunk in stream_llm_chat(DEFAULT_CHAT_SYSTEM_PROMPT, user_message, history=history):
+                full += chunk
+                # Send as SSE data event
+                yield f"data: {chunk}\n\n"
+        except Exception as e:
+            yield f"data: [ERROR] {str(e)}\n\n"
+        # Persist the assembled assistant message
+        try:
+            chat_history.append_message(session_id, "assistant", full)
+        except Exception:
+            pass
+
+        # Notify client the stream is done
+        import json as _json
+
+        yield f"event: done\ndata: {_json.dumps({'session_id': session_id, 'response': full})}\n\n"
+
+    return Response(generate(), mimetype="text/event-stream")
+
+
+
+@bp.route('/chat/stream/start', methods=['POST'])
+def chat_stream_start():
+    """Begin a stream session. Client POSTs { message, session_id? } and receives { stream_id }.
+
+    The client then connects with EventSource to `/api/chat/stream/{stream_id}`.
+    """
+    data = request.get_json(force=True) or {}
+    user_message = (data.get('message') or '').strip()
+    session_id = data.get('session_id')
+
+    if not user_message:
+        return jsonify({'error': 'message is required'}), 400
+
+    history = []
+    if session_id:
+        session = chat_history.get_session(session_id)
+        if session:
+            history = session.get('messages', [])
+
+    # Reserve a session id and persist user message immediately
+    session_id = chat_history.ensure_session(session_id, user_message[:60])
+    chat_history.append_message(session_id, 'user', user_message)
+
+    sid = str(uuid4())
+    _STREAM_REGISTRY[sid] = {'message': user_message, 'session_id': session_id, 'history': history}
+    return jsonify({'stream_id': sid, 'session_id': session_id})
+
+
+
+@bp.route('/chat/stream/<stream_id>', methods=['GET'])
+def chat_stream_event(stream_id: str):
+    """EventSource endpoint that streams token events for a reserved stream_id."""
+    payload = _STREAM_REGISTRY.pop(stream_id, None)
+    if not payload:
+        return jsonify({'error': 'invalid stream id'}), 404
+
+    user_message = payload['message']
+    session_id = payload['session_id']
+    history = payload.get('history', [])
+
+    def generate():
+        full = ''
+        try:
+            for chunk in stream_llm_chat(DEFAULT_CHAT_SYSTEM_PROMPT, user_message, history=history):
+                full += chunk
+                # Proper SSE framing
+                yield f'data: {chunk}\n\n'
+        except Exception as e:
+            yield f'data: [ERROR] {str(e)}\n\n'
+
+        try:
+            chat_history.append_message(session_id, 'assistant', full)
+        except Exception:
+            pass
+
+        import json as _json
+        yield f'event: done\ndata: {_json.dumps({"session_id": session_id, "response": full})}\n\n'
+
+    return Response(generate(), mimetype='text/event-stream')

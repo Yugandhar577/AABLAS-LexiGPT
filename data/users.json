@@ -1,0 +1,20 @@
+{
+  "users": [
+    {
+      "username": "yugandhar",
+      "display_name": "Yugandhar_577",
+      "password_hash": "scrypt:32768:8:1$6EljKtHKh4Cr6KAE$0dc58746c62734ec042365f76b0de4e609a6299d8239bcea252556bfa44eeb2a4fa644d670cea92affe13a22fa8630367d847fdc35e935b31ec4f5f6b1fbecba",
+      "avatar_url": null,
+      "refresh_tokens": [
+        {
+          "jti": "aaa08a362df1436e96315f3bb8f90ac8",
+          "exp": 1766894361
+        },
+        {
+          "jti": "f3ac3b5493624050aa67e1f273243ec5",
+          "exp": 1766894975
+        }
+      ]
+    }
+  ]
+}
