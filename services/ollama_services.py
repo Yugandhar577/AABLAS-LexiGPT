@@ -100,6 +100,63 @@ def llm_chat(
         return _chat_via_cli(messages)
 
 
+def stream_llm_chat(
+    system_prompt: Optional[str],
+    user_prompt: str,
+    history: Optional[List[Dict[str, str]]] = None,
+    temperature: float = 0.15,
+    max_tokens: int = 768,
+):
+    """Stream tokens from the Ollama HTTP API as a generator of text chunks.
+
+    Yields decoded text chunks (strings). The caller can accumulate them
+    to form the final assistant output.
+    """
+    messages = _build_messages(system_prompt, user_prompt, history)
+    payload = {
+        "model": OLLAMA_MODEL,
+        "messages": messages,
+        "stream": True,
+        "options": {
+            "temperature": temperature,
+            "num_predict": max_tokens,
+        },
+    }
+
+    resp = requests.post(
+        f"{OLLAMA_HOST.rstrip('/')}/api/chat", json=payload, stream=True, timeout=120
+    )
+    resp.raise_for_status()
+
+    # Ollama returns a chunked/ndjson-like stream. Iterate lines and try to
+    # extract sensible text for each line; fall back to raw line text.
+    for line in resp.iter_lines(decode_unicode=True):
+        if not line:
+            continue
+        token = None
+        try:
+            data = json.loads(line)
+            # flexible extraction depending on Ollama's streaming format
+            if isinstance(data, dict):
+                if "text" in data and data["text"]:
+                    token = data["text"]
+                elif "message" in data and isinstance(data["message"], dict):
+                    msg = data["message"]
+                    # message.content may be a string or structure
+                    if isinstance(msg.get("content"), str):
+                        token = msg.get("content")
+                    else:
+                        token = json.dumps(msg.get("content", ""))
+        except Exception:
+            # Not JSON or unexpected shape — use the raw line
+            token = None
+
+        if token is None:
+            token = line
+
+        yield token
+
+
 def query_ollama(prompt: str) -> str:
     """Compatibility helper for legacy callers."""
     return llm_chat(system_prompt=None, user_prompt=prompt)
@@ -111,13 +168,19 @@ def query_ollama_with_rag(user_query: str, top_k: int = 3) -> dict:
     Returns the answer and the snippets that were supplied to the model.
     """
     context_docs = get_relevant_context(user_query, top_k=top_k)
-    context_text = "\n\n".join(context_docs) or "No relevant context found."
+
+    if context_docs:
+        # Build a numbered context block with short snippets
+        context_text = "\n\n".join([f"[{d['id']}] {d['title']}\n{d['snippet']}" for d in context_docs])
+    else:
+        context_text = "No relevant context found."
 
     prompt = (
-        "Use ONLY the provided Indian legal context to answer the user's question. "
-        "Cite the section titles in brackets when possible. "
-        "If the context is insufficient, explicitly say so."
-        f"\n\nContext:\n{context_text}\n\nQuestion:\n{user_query}\n\nAnswer:"
+        "You are an expert legal assistant. Use ONLY the provided Indian legal context to answer the user's question. "
+        "When you use a document, cite it by its numeric id in square brackets (e.g. [1]). "
+        "If the context is insufficient to answer, say explicitly which information is missing. "
+        "At the end, return a short JSON object (not additional commentary) with keys: sources (array of {id, title, snippet}), and answer (string).\n\n"
+        f"Context:\n{context_text}\n\nQuestion:\n{user_query}\n\nAnswer:"
     )
 
     answer = llm_chat(DEFAULT_CHAT_SYSTEM_PROMPT, prompt)

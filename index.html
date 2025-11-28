@@ -6,6 +6,7 @@
     <title>AI Lawyer Interface</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-KyZXEAg3QhqLMpG8r+Knujsl5/5hb7g8r+Knujsl5/5hb7g8r+Knujsl5/5hb7g8r" crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -40,13 +41,19 @@
                 </div>
             </div>
 
+            <div class="sidebar-search">
+                <input type="search" id="sidebar-search-input" placeholder="Search chats" />
+            </div>
+
             <ul class="chats-list" id="chats-list">
                 <li class="chats-list-item active">History</li>
             </ul>
 
             <div class="sidebar-bottom">
-                <div class="sidebar-bottom-item">Sign Up</div>
-                <div class="sidebar-bottom-item">Login</div>
+                <div class="sidebar-bottom-item" id="save-chat">Save Chat</div>
+                <div class="sidebar-bottom-item" id="export-chat">Export</div>
+                <div class="sidebar-bottom-item" id="import-chat">Import</div>
+                <div class="sidebar-bottom-item" id="clear-history">Clear History</div>
             </div>
         </div>
 
@@ -92,6 +99,11 @@
                             <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"/>
                             <path d="M12 23a1 1 0 0 1-1-1v-2a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1zM12 3a1 1 0 0 1-1-1V.99a1 1 0 1 1 2 0v1.01a1 1 0 0 1-1 1zM5.64 19.36a1 1 0 0 1-.71-.29l-1.41-1.41a1 1 0 1 1 1.41-1.41l1.41 1.41a1 1 0 0 1-.7 1.7zM19.36 5.64a1 1 0 0 1-.71-.29l-1.41-1.41a1 1 0 1 1 1.41-1.41l1.41 1.41a1 1 0 0 1-.7 1.7zM23 12a1 1 0 0 1-1 1h-2a1 1 0 1 1 0-2h2a1 1 0 0 1 1 1zM3 12a1 1 0 0 1-1 1H.99a1 1 0 1 1 0-2H2a1 1 0 0 1 1 1zM19.36 19.36a1 1 0 0 1-.7-.29l-1.41-1.41a1 1 0 1 1 1.41-1.41l1.41 1.41a1 1 0 0 1-.7 1.7zM5.64 5.64a1 1 0 0 1-.71-.29l-1.41-1.41a1 1 0 1 1 1.41-1.41l1.41 1.41a1 1 0 0 1-.7 1.7z"/>
                         </svg>
+                    </button>
+                    <!-- Stream toggle: enable token-streaming for faster-feeling responses -->
+                    <button id="stream-toggle" title="Toggle streaming responses" style="margin-left:8px;">
+                        <span id="stream-off">Stream: Off</span>
+                        <span id="stream-on" class="hidden">Stream: On</span>
                     </button>
                 </div>
             </div>
