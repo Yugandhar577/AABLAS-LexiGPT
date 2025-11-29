@@ -4,3 +4,8 @@ requests
 chromadb
 pydantic
 PyJWT
+python-docx
+reportlab
+openpyxl
+python-pptx
+Pillow
