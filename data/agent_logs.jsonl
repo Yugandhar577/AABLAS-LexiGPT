@@ -1,0 +1,31 @@
+{"ts": "2025-11-29T07:08:47.065475", "action": "decide", "reason": "rule-based: newer then larger", "candidates": ["data\\pdfs\\Right to information act.pdf", "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "data\\pdfs\\Legal Glossary Tri-Lingual.pdf", "data\\pdfs\\Insurance Regulatory and Development Authority Act, 1999.pdf", "data\\pdfs\\Information Technology Act, 2000.pdf", "data\\pdfs\\Indian Contract Act, 1872.pdf", "data\\pdfs\\Food Safety and Standards Act,.pdf", "data\\pdfs\\Consumer protection act.pdf", "data\\pdfs\\Chronological List of Central Acts.pdf", "data\\pdfs\\COI_2024.pdf"], "status": "planned"}
+{"ts": "2025-11-29T07:08:47.066184", "action": "process_start", "target": "data\\pdfs\\Right to information act.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-11-29T07:09:21.401668", "action": "process_end", "target": "data\\pdfs\\Right to information act.pdf", "status": "completed", "duration": 34.34}
+{"ts": "2025-11-29T07:09:21.402672", "action": "process_start", "target": "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-11-29T07:10:19.544026", "action": "process_end", "target": "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "status": "completed", "duration": 58.14}
+{"ts": "2025-11-29T07:10:19.545025", "action": "process_start", "target": "data\\pdfs\\Legal Glossary Tri-Lingual.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-11-29T07:13:14.835321", "action": "process_end", "target": "data\\pdfs\\Legal Glossary Tri-Lingual.pdf", "status": "completed", "duration": 175.29}
+{"ts": "2025-11-29T07:13:14.836273", "action": "process_start", "target": "data\\pdfs\\Insurance Regulatory and Development Authority Act, 1999.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-11-29T07:13:53.534035", "action": "process_end", "target": "data\\pdfs\\Insurance Regulatory and Development Authority Act, 1999.pdf", "status": "completed", "duration": 38.7}
+{"ts": "2025-11-29T07:13:53.535208", "action": "process_start", "target": "data\\pdfs\\Information Technology Act, 2000.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-11-29T07:16:57.853917", "action": "decide", "reason": "rule-based: newer then larger", "candidates": ["data\\pdfs\\Right to information act.pdf", "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "data\\pdfs\\Legal Glossary Tri-Lingual.pdf", "data\\pdfs\\Insurance Regulatory and Development Authority Act, 1999.pdf", "data\\pdfs\\Information Technology Act, 2000.pdf", "data\\pdfs\\Indian Contract Act, 1872.pdf", "data\\pdfs\\Food Safety and Standards Act,.pdf", "data\\pdfs\\Consumer protection act.pdf", "data\\pdfs\\Chronological List of Central Acts.pdf", "data\\pdfs\\COI_2024.pdf"], "status": "planned"}
+{"ts": "2025-11-29T07:16:57.854733", "action": "process_start", "target": "data\\pdfs\\Right to information act.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-11-29T07:17:32.441741", "action": "process_end", "target": "data\\pdfs\\Right to information act.pdf", "status": "completed", "duration": 34.59}
+{"ts": "2025-11-29T07:17:32.442322", "action": "process_start", "target": "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-11-29T07:18:29.696135", "action": "process_end", "target": "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "status": "completed", "duration": 57.25}
+{"ts": "2025-11-29T07:18:29.697058", "action": "process_start", "target": "data\\pdfs\\Legal Glossary Tri-Lingual.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-11-29T07:21:53.477156", "action": "process_end", "target": "data\\pdfs\\Legal Glossary Tri-Lingual.pdf", "status": "completed", "duration": 203.78}
+{"ts": "2025-11-29T07:21:53.478054", "action": "process_start", "target": "data\\pdfs\\Insurance Regulatory and Development Authority Act, 1999.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-11-29T07:22:32.678533", "action": "process_end", "target": "data\\pdfs\\Insurance Regulatory and Development Authority Act, 1999.pdf", "status": "completed", "duration": 39.2}
+{"ts": "2025-11-29T07:22:32.679298", "action": "process_start", "target": "data\\pdfs\\Information Technology Act, 2000.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-11-29T07:23:44.995566", "action": "process_end", "target": "data\\pdfs\\Information Technology Act, 2000.pdf", "status": "completed", "duration": 72.32}
+{"ts": "2025-11-29T07:23:44.996423", "action": "process_start", "target": "data\\pdfs\\Indian Contract Act, 1872.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-11-29T07:25:14.316691", "action": "process_end", "target": "data\\pdfs\\Indian Contract Act, 1872.pdf", "status": "completed", "duration": 89.32}
+{"ts": "2025-11-29T07:25:14.317515", "action": "process_start", "target": "data\\pdfs\\Food Safety and Standards Act,.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-11-29T07:26:22.942829", "action": "process_end", "target": "data\\pdfs\\Food Safety and Standards Act,.pdf", "status": "completed", "duration": 68.63}
+{"ts": "2025-11-29T07:26:22.943362", "action": "process_start", "target": "data\\pdfs\\Consumer protection act.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-11-29T07:27:20.715036", "action": "process_end", "target": "data\\pdfs\\Consumer protection act.pdf", "status": "completed", "duration": 57.77}
+{"ts": "2025-11-29T07:27:20.715647", "action": "process_start", "target": "data\\pdfs\\Chronological List of Central Acts.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-11-29T07:27:47.900473", "action": "process_end", "target": "data\\pdfs\\Chronological List of Central Acts.pdf", "status": "completed", "duration": 27.18}
+{"ts": "2025-11-29T07:27:47.901214", "action": "process_start", "target": "data\\pdfs\\COI_2024.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-11-29T07:52:30.948433", "action": "process_end", "target": "data\\pdfs\\COI_2024.pdf", "status": "completed", "duration": 1483.05}
