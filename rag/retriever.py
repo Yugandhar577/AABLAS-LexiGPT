@@ -13,6 +13,7 @@ from typing import Dict, List
 
 from config import LEGAL_DATA_FILE, VECTOR_DB_DIR
 from .vector_db import VectorDB
+from .chat_history_store import get_chat_history_store
 
 
 @dataclass
@@ -34,6 +35,11 @@ class Retriever:
             self.vdb = VectorDB(persist_dir=persist_dir, auto_seed_file=data_path)
         except Exception:
             self.vdb = None
+        # Initialize chat history store
+        try:
+            self.chat_store = get_chat_history_store()
+        except Exception:
+            self.chat_store = None
 
         self.fallback_corpus: List[Dict[str, str]] = [
             {
@@ -52,18 +58,37 @@ class Retriever:
 
     # ------------------------------------------------------------------ #
     def search(self, query: str, top_k: int = 3) -> List[RetrieverResult]:
+        combined: List[RetrieverResult] = []
+
+        # 1) Search chat history first (gives user-specific context)
+        if getattr(self, "chat_store", None):
+            try:
+                chat_hits = self.chat_store.search(query, top_k=top_k)
+                for hit in chat_hits:
+                    meta = hit.get("metadata", {}) or {}
+                    session_id = meta.get("session_id", "chat")
+                    role = meta.get("role", "user")
+                    title = f"Chat ({session_id} - {role})"
+                    score = float(hit.get("score", 0.0))
+                    # Slightly boost chat matches
+                    score = min(1.0, score * 1.2)
+                    combined.append(RetrieverResult(title=title, content=hit.get("content", ""), score=score))
+            except Exception:
+                pass
+
+        # 2) Search legal corpus
         if self.vdb:
             try:
                 hits = self.vdb.search(query, top_k=top_k)
                 if hits:
-                    return [
-                        RetrieverResult(
-                            title=hit["title"],
-                            content=hit["content"],
-                            score=float(hit.get("score", 0.0)),
+                    for hit in hits:
+                        combined.append(
+                            RetrieverResult(
+                                title=hit.get("title", "Legal Reference"),
+                                content=hit.get("content", ""),
+                                score=float(hit.get("score", 0.0)),
+                            )
                         )
-                        for hit in hits
-                    ]
             except Exception:
                 pass
 
@@ -75,6 +100,21 @@ class Retriever:
             doc_tokens = set(content.lower().split())
             score = len(query_tokens & doc_tokens)
             scored.append(RetrieverResult(entry["title"], content, float(score)))
+
+        # Merge combined results with fallback if needed
+        if combined:
+            # sort by score and return top_k
+            combined.sort(key=lambda r: r.score, reverse=True)
+            # dedupe by content text (keep highest score)
+            seen = set()
+            deduped: List[RetrieverResult] = []
+            for r in combined:
+                key = (r.content or "").strip()
+                if not key or key in seen:
+                    continue
+                seen.add(key)
+                deduped.append(r)
+            return deduped[:top_k]
 
         scored.sort(key=lambda r: r.score, reverse=True)
         return scored[:top_k]

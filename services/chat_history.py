@@ -12,6 +12,12 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from config import CHAT_HISTORY_FILE
+try:
+    # Lazy import to avoid hard dependency during environments without chroma
+    from rag.chat_history_store import get_chat_history_store
+    _CHAT_STORE = get_chat_history_store()
+except Exception:
+    _CHAT_STORE = None
 
 CHAT_PATH = Path(CHAT_HISTORY_FILE)
 CHAT_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -79,6 +85,13 @@ def append_message(session_id: str, role: str, text: str) -> None:
     if role == "user" and len(chats[session_id]["messages"]) == 1:
         chats[session_id]["title"] = text[:48] + ("..." if len(text) > 48 else "")
     _save(chats)
+    # Also persist message to vector store for live retrieval (best-effort)
+    try:
+        if _CHAT_STORE is not None:
+            _CHAT_STORE.add_message(session_id=session_id, role=role, text=text)
+    except Exception:
+        # Do not let vector store failures break chat persistence
+        pass
 
 
 def ensure_session(session_id: Optional[str], fallback_title: str) -> str:
