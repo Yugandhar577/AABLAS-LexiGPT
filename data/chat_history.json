@@ -163,5 +163,24 @@
     "title": "Saved chat",
     "messages": [],
     "updated_at": 1764323230.9804573
+  },
+  "session_1764404314_71b6ce": {
+    "title": "level of car automation allowed in india",
+    "messages": [
+      {
+        "role": "user",
+        "text": "level of car automation allowed in india"
+      },
+      {
+        "role": "assistant",
+        "text": "In India, the level of car automation is governed by the Central Motor Vehicles Rules, 1989, as amended from time to time. The rules provide for different levels of automation, categorized into four categories:\n\n1. **Level 0**: No Automation - This category includes vehicles that do not have any automated driving features.\n\n2. **Level 1**: Driver Assistance Systems (DAS) - Vehicles in this category are equipped with advanced driver assistance systems such as lane departure warning, blind spot detection, adaptive cruise control, and automatic emergency braking.\n\n3. **Level 2**: Partial Automation - This category includes vehicles that can take control of the vehicle's steering, acceleration, or braking under certain conditions, but require human intervention to resume control.\n\n4. **Level 3**: Conditional Automation - Vehicles in this category are capable of taking control of the vehicle's steering, acceleration, and braking under specific conditions, such as traffic jams or highway driving, without requiring human intervention.\n\n5. **Level 4**: High Automation - This category includes vehicles that can operate autonomously in most driving scenarios, but may require human intervention in exceptional circumstances.\n\n6. **Level 5**: Full Automation - Vehicles in this category are capable of operating entirely on their own, without human intervention, in all driving scenarios.\n\nThe Indian government has not explicitly allowed the use of Level 3, 4, or 5 automation features in vehicles plying on public roads. However, the Ministry of Road Transport and Highways (MoRTH) has issued guidelines for the development and testing of autonomous vehicles in India.\n\nIn a notification dated March 17, 2022, the MoRTH allowed the use of Level 1 and Level 2 automation features in vehicles plying on public roads. The notification also provided for the testing of Level 3 automation features under controlled conditions, subject to certain requirements and safeguards.\n\nThe guidelines require autonomous vehicle manufacturers to obtain a special permit from the MoRTH before conducting any testing or deployment of autonomous vehicles on public roads. The permit is granted after a thorough review of the manufacturer's safety plan, risk assessment, and other relevant documents.\n\nIn summary, while India has allowed the use of Level 1 and Level 2 automation features in vehicles plying on public roads, it has not explicitly permitted the use of higher levels of automation (Level 3, 4, or 5) without a special permit from the MoRTH."
+      }
+    ],
+    "updated_at": 1764404340.3749547
+  },
+  "session_1764404358_d82afb": {
+    "title": "Saved chat",
+    "messages": [],
+    "updated_at": 1764404358.3242168
   }
 }

@@ -372,10 +372,52 @@ function hideSettingsPage() {
     const chatHist = document.getElementById('chat-history'); if (chatHist) chatHist.style.display = '';
 }
 
-// Sidebar toggle for desktop
-sidebarToggle.addEventListener('click', function() {
-    sidebar.classList.toggle('expanded');
+// Sidebar state management (persisted)
+function setSidebarExpanded(expanded, persist = true) {
+    if (!sidebar) return;
+    if (expanded) {
+        sidebar.classList.add('expanded');
+        sidebar.classList.remove('collapsed');
+    } else {
+        sidebar.classList.remove('expanded');
+        sidebar.classList.add('collapsed');
+    }
+    if (persist) localStorage.setItem('SIDEBAR_EXPANDED', expanded ? 'true' : 'false');
+    // reflect to toggle button aria state
+    try {
+        const btn = document.getElementById('sidebar-toggle-btn');
+        if (btn) btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    } catch (e) { /* ignore */ }
+}
+
+// initialize sidebar from persisted state (defaults to expanded on wide screens)
+(function initSidebarState(){
+    try {
+        const pref = localStorage.getItem('SIDEBAR_EXPANDED');
+        if (pref === null) {
+            // use existing DOM classes as fallback
+            const expanded = sidebar && sidebar.classList.contains('expanded');
+            setSidebarExpanded(!!expanded, false);
+        } else {
+            setSidebarExpanded(pref === 'true', false);
+        }
+    } catch(e){ console.warn('sidebar init failed', e); }
+})();
+
+if (sidebarToggle) sidebarToggle.addEventListener('click', function() {
+    const isExpanded = sidebar && sidebar.classList.contains('expanded');
+    setSidebarExpanded(!isExpanded);
 });
+
+// keyboard activation for sidebar toggle (Enter/Space)
+if (sidebarToggle) {
+    sidebarToggle.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            sidebarToggle.click();
+        }
+    });
+}
 
 const newChatButton = document.querySelector('.sidebar-item-new-chat');
 if (newChatButton) {
@@ -395,8 +437,72 @@ if (streamToggle) {
 
 // Sidebar toggle for mobile
 mobileMenuToggle.addEventListener('click', function() {
-    sidebar.classList.add('expanded');
+    // open temporarily on mobile (do not persist)
+    setSidebarExpanded(true, false);
 });
+
+// Header show/hide on scroll-up with top-hover reveal
+const headerMain = document.querySelector('.header-main');
+let lastScrollY = window.scrollY || 0;
+let scrollTicking = false;
+function onScroll() {
+    if (scrollTicking) return;
+    scrollTicking = true;
+    requestAnimationFrame(() => {
+        const y = window.scrollY || 0;
+        if (!headerMain) { scrollTicking = false; return; }
+        if (y > lastScrollY + 8 && y > 80) {
+            // scrolled down
+            headerMain.classList.add('hide-header');
+        } else if (y < lastScrollY - 8 || y <= 80) {
+            // scrolled up
+            headerMain.classList.remove('hide-header');
+        }
+        lastScrollY = y;
+        scrollTicking = false;
+    });
+}
+window.addEventListener('scroll', onScroll, { passive: true });
+
+// reveal header when mouse is near top (helps when hidden)
+window.addEventListener('mousemove', (e) => {
+    if (!headerMain) return;
+    if (e.clientY < 60) headerMain.classList.remove('hide-header');
+});
+
+// Header search panel toggling
+const headerSearchToggle = document.getElementById('header-search-toggle');
+const headerSearchPanel = document.getElementById('header-search-panel');
+const headerSearchInput = document.getElementById('header-search-input');
+const headerSearchClose = document.getElementById('header-search-close');
+if (headerSearchToggle && headerSearchPanel) {
+    headerSearchToggle.addEventListener('click', () => {
+        const expanded = headerSearchToggle.getAttribute('aria-expanded') === 'true';
+        headerSearchToggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+        headerSearchPanel.setAttribute('aria-hidden', expanded ? 'true' : 'false');
+        if (!expanded && headerSearchInput) { setTimeout(()=>headerSearchInput.focus(), 120); }
+    });
+}
+if (headerSearchClose && headerSearchPanel) {
+    headerSearchClose.addEventListener('click', () => {
+        headerSearchPanel.setAttribute('aria-hidden', 'true');
+        if (headerSearchToggle) headerSearchToggle.setAttribute('aria-expanded', 'false');
+    });
+}
+
+// Wire header search input to filter chat list (debounced)
+if (headerSearchInput) {
+    let searchTimer = null;
+    headerSearchInput.addEventListener('input', (e) => {
+        const q = e.target.value.trim().toLowerCase();
+        if (searchTimer) clearTimeout(searchTimer);
+        searchTimer = setTimeout(()=>{
+            // reuse existing renderChatList function by setting sidebarSearch value
+            if (sidebarSearch) sidebarSearch.value = q;
+            renderChatList();
+        }, 220);
+    });
+}
 
 // Hide sidebar when clicking outside on mobile
 sidebarBackdrop.addEventListener('click', function() {
@@ -948,5 +1054,184 @@ if (clearBtn) {
             chatHistory.innerHTML = '';
             renderChatList();
         }
+    });
+}
+
+// ----------------------------
+// Agent Logs modal + SSE client
+// ----------------------------
+let agentEventSource = null;
+const AGENT_LOG_LIMIT = 2000;
+let agentUserInteracting = false;
+let agentAutoScrollPaused = false;
+const seenAgentActions = new Set();
+const filterState = { action: 'all', search: '' };
+
+function appendAgentLog(obj) {
+    try {
+        const container = document.getElementById('agent-log-container');
+        if (!container) return;
+        const el = document.createElement('div');
+        el.style.padding = '6px 0';
+        el.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
+        const ts = obj.ts || new Date().toISOString();
+        const action = (obj.action || obj.type || '').toString();
+        const pre = document.createElement('pre');
+        pre.style.margin = '0';
+        pre.style.whiteSpace = 'pre-wrap';
+        pre.style.wordBreak = 'break-word';
+        pre.textContent = `[${ts}] ${action}  ${JSON.stringify(obj, null, 0)}`;
+        el.appendChild(pre);
+        // set action data for filtering
+        el.dataset.action = action || '';
+        // maintain seen actions and populate filter select
+        if (action && !seenAgentActions.has(action)) {
+            seenAgentActions.add(action);
+            const sel = document.getElementById('agent-filter-select');
+            if (sel) {
+                const opt = document.createElement('option'); opt.value = action; opt.textContent = action; sel.appendChild(opt);
+            }
+        }
+        container.appendChild(el);
+        // limit size
+        while (container.children.length > AGENT_LOG_LIMIT) container.removeChild(container.firstChild);
+        // auto-scroll only when user is not interacting and near the bottom
+        const nearBottom = (container.scrollHeight - container.clientHeight - container.scrollTop) < 100;
+        if (!agentUserInteracting && nearBottom && !agentAutoScrollPaused) {
+            container.scrollTop = container.scrollHeight;
+        }
+    } catch (e) { console.warn('appendAgentLog failed', e); }
+}
+
+function connectAgentStream() {
+    disconnectAgentStream();
+    try {
+        const src = apiUrl('/api/agent/stream');
+        agentEventSource = new EventSource(src);
+        agentEventSource.onmessage = (e) => {
+            try {
+                const obj = JSON.parse(e.data);
+                appendAgentLog(obj);
+            } catch (err) {
+                appendAgentLog({ ts: new Date().toISOString(), action: 'raw', raw: e.data });
+            }
+        };
+        agentEventSource.onerror = (e) => {
+            appendAgentLog({ ts: new Date().toISOString(), action: 'sse_error', error: String(e) });
+        };
+        appendAgentLog({ ts: new Date().toISOString(), action: 'stream_connected', status: 'ok' });
+    } catch (err) {
+        appendAgentLog({ ts: new Date().toISOString(), action: 'stream_failed', error: String(err) });
+    }
+}
+
+function disconnectAgentStream() {
+    if (agentEventSource) {
+        try { agentEventSource.close(); } catch (e) {}
+        agentEventSource = null;
+        const container = document.getElementById('agent-log-container');
+        if (container) appendAgentLog({ ts: new Date().toISOString(), action: 'stream_disconnected' });
+    }
+}
+
+async function startAgent() {
+    try {
+        const res = await fetch(apiUrl('/api/agent/run'), { method: 'POST' });
+        const d = await res.json().catch(()=>({}));
+        appendAgentLog({ ts: new Date().toISOString(), action: 'start_requested', status: res.status, response: d });
+        if (res.ok) connectAgentStream();
+    } catch (e) { appendAgentLog({ ts: new Date().toISOString(), action: 'start_error', error: String(e) }); }
+}
+
+async function stopAgent() {
+    try {
+        const res = await fetch(apiUrl('/api/agent/stop'), { method: 'POST' });
+        const d = await res.json().catch(()=>({}));
+        appendAgentLog({ ts: new Date().toISOString(), action: 'stop_requested', status: res.status, response: d });
+        disconnectAgentStream();
+    } catch (e) { appendAgentLog({ ts: new Date().toISOString(), action: 'stop_error', error: String(e) }); }
+}
+
+function clearAgentView() {
+    const container = document.getElementById('agent-log-container');
+    if (container) container.innerHTML = '';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const openBtn = document.getElementById('agent-logs-btn');
+    const modal = document.getElementById('agent-modal-overlay');
+    const closeBtn = document.getElementById('agent-modal-close');
+    const startBtn = document.getElementById('agent-start');
+    const stopBtn = document.getElementById('agent-stop');
+    const clearBtnAgent = document.getElementById('agent-clear');
+
+    async function openAgentModal() {
+        modal.classList.remove('hidden');
+        await loadAgentHistory();
+        connectAgentStream();
+    }
+    if (openBtn && modal) openBtn.addEventListener('click', openAgentModal);
+    if (closeBtn && modal) closeBtn.addEventListener('click', () => { modal.classList.add('hidden'); disconnectAgentStream(); });
+    if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) { modal.classList.add('hidden'); disconnectAgentStream(); } });
+    if (startBtn) startBtn.addEventListener('click', startAgent);
+    if (stopBtn) stopBtn.addEventListener('click', stopAgent);
+    if (clearBtnAgent) clearBtnAgent.addEventListener('click', clearAgentView);
+    // container interaction handling to avoid aggressive auto-scroll causing flicker
+    const container = document.getElementById('agent-log-container');
+    if (container) {
+        container.addEventListener('mouseenter', () => { agentUserInteracting = true; });
+        container.addEventListener('mouseleave', () => { agentUserInteracting = false; });
+        container.addEventListener('scroll', () => {
+            const nearBottom = (container.scrollHeight - container.clientHeight - container.scrollTop) < 100;
+            agentUserInteracting = !nearBottom;
+        });
+    }
+    // pause / follow / filters
+    const pauseChk = document.getElementById('agent-pause-autoscroll');
+    const followBtn = document.getElementById('agent-follow');
+    const filterSel = document.getElementById('agent-filter-select');
+    const searchInput = document.getElementById('agent-search-input');
+    if (pauseChk) pauseChk.addEventListener('change', (e) => { agentAutoScrollPaused = !!e.target.checked; });
+    if (followBtn) followBtn.addEventListener('click', () => {
+        agentAutoScrollPaused = false; if (pauseChk) pauseChk.checked = false; if (container) container.scrollTop = container.scrollHeight; appendAgentLog({ ts: new Date().toISOString(), action: 'follow_clicked' });
+    });
+    if (filterSel) filterSel.addEventListener('change', (e) => { filterState.action = e.target.value; applyFiltersToExisting(); });
+    if (searchInput) {
+        let deb = null;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(deb);
+            deb = setTimeout(() => { filterState.search = e.target.value.trim().toLowerCase(); applyFiltersToExisting(); }, 250);
+        });
+    }
+});
+
+// Fetch last logs from server and render into modal
+async function loadAgentHistory() {
+    try {
+        const res = await fetch(apiUrl('/api/agent/logs'));
+        if (!res.ok) return;
+        const arr = await res.json();
+        const container = document.getElementById('agent-log-container');
+        if (!container) return;
+        container.innerHTML = '';
+        // arr is list of log objects (recent last)
+        arr.forEach(obj => appendAgentLog(obj));
+        // apply current filters after loading
+        applyFiltersToExisting();
+    } catch (e) {
+        appendAgentLog({ ts: new Date().toISOString(), action: 'history_load_error', error: String(e) });
+    }
+}
+
+function applyFiltersToExisting() {
+    const container = document.getElementById('agent-log-container');
+    if (!container) return;
+    const items = Array.from(container.children);
+    items.forEach(it => {
+        const action = (it.dataset.action || '').toLowerCase();
+        const text = it.textContent.toLowerCase();
+        const actionMatch = (filterState.action === 'all') || (action === filterState.action.toLowerCase());
+        const searchMatch = !filterState.search || text.includes(filterState.search);
+        it.style.display = (actionMatch && searchMatch) ? '' : 'none';
     });
 }

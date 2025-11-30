@@ -4,7 +4,42 @@ from chromadb.config import Settings
 from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 from unstructured.partition.pdf import partition_pdf
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+# Try to import langchain's text splitter; provide a lightweight
+# fallback if it's not available in the environment.
+try:
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
+except Exception:
+    class RecursiveCharacterTextSplitter:
+        """Lightweight fallback splitter when `langchain.text_splitter`
+        is not available. This uses a sliding-window approach with
+        configurable chunk size and overlap.
+        """
+        def __init__(self, chunk_size=1000, chunk_overlap=150, separators=None):
+            self.chunk_size = int(chunk_size)
+            self.chunk_overlap = int(chunk_overlap)
+            self.separators = separators or []
+
+        def split_text(self, text: str):
+            if not text:
+                return []
+            text = text.strip()
+            if len(text) <= self.chunk_size:
+                return [text]
+
+            # Fast sliding-window fallback: split by fixed window size
+            chunks = []
+            step = max(1, self.chunk_size - self.chunk_overlap)
+            start = 0
+            text_len = len(text)
+            while start < text_len:
+                end = start + self.chunk_size
+                chunk = text[start:end]
+                chunks.append(chunk)
+                if end >= text_len:
+                    break
+                start += step
+            return chunks
 
 
 # ==========================================================
@@ -95,8 +130,9 @@ def chunk_text(text):
 
 client = chromadb.Client(
     Settings(
-        chroma_db_impl="duckdb+parquet",
-        persist_directory=DB_DIR
+        # Use the new non-legacy persistent configuration
+        is_persistent=True,
+        persist_directory=DB_DIR,
     )
 )
 

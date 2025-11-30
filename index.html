@@ -15,6 +15,12 @@
     <div class="sidebar">
         <div>
             <div class="sidebar-top">
+                <div id="sidebar-toggle-btn" class="sidebar-toggle" role="button" tabindex="0" aria-expanded="true" aria-label="Toggle sidebar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0"/>
+                    </svg>
+                    <br>
+                </div>
                 <div class="chatgpt-header">
                     <h1>AI Lawyer</h1>
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
@@ -25,19 +31,35 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                         <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
                     </svg>
-                    <span>New chat</span>
-                </div>
-                <div class="sidebar-item">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <!-- Agent Logs modal -->
+                    <div id="agent-modal-overlay" class="modal-overlay hidden">
+                        <div class="modal-card" id="agent-modal">
+                            <button class="modal-close" id="agent-modal-close">×</button>
+                            <h3>Agent Logs</h3>
+                            <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+                                <button id="agent-start" class="sidebar-bottom-item">Start Agent</button>
+                                <button id="agent-stop" class="sidebar-bottom-item">Stop Agent</button>
+                                <button id="agent-clear" class="sidebar-bottom-item">Clear View</button>
+                                <label style="display:flex;align-items:center;gap:6px;margin-left:8px;color:#cbd5e1;font-size:0.9rem;">
+                                    <input type="checkbox" id="agent-pause-autoscroll" /> Pause auto-scroll
+                                </label>
+                                <button id="agent-follow" class="sidebar-bottom-item" style="margin-left:6px;">Follow</button>
+                            </div>
+                            <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+                                <label style="color:#cbd5e1;font-size:0.9rem;">Filter:</label>
+                                <select id="agent-filter-select" style="min-width:160px;padding:6px;border-radius:6px;background:transparent;color:var(--text-color)">
+                                    <option value="all">All actions</option>
+                                </select>
+                                <input id="agent-search-input" placeholder="Search log text" style="flex:1;padding:6px;border-radius:6px;background:transparent;color:var(--text-color);border:1px solid rgba(255,255,255,0.04);" />
+                            </div>
+                            <div id="agent-log-container" style="height:400px;overflow:auto;background:#0b1221;color:#e6eef8;padding:12px;border-radius:6px;font-family:monospace;font-size:13px"></div>
+                        </div>
+                    </div>
+
+                    <!-- Auth modals -->
                         <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
                     </svg>
                     <span>Search chats</span>
-                </div>
-                <div class="sidebar-item">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M2.5 11.5A.5.5 0 0 1 3 11V6a.5.5 0 0 1 1 0v5a.5.5 0 0 1-.5.5zm2-4A.5.5 0 0 1 5 7V6a.5.5 0 0 1 1 0v1a.5.5 0 0 1-.5.5zm2 2A.5.5 0 0 1 7 9V6a.5.5 0 0 1 1 0v3a.5.5 0 0 1-.5.5zm2-2A.5.5 0 0 1 9 7V6a.5.5 0 0 1 1 0v1a.5.5 0 0 1-.5.5zm2 0A.5.5 0 0 1 11 7V6a.5.5 0 0 1 1 0v1a.5.5 0 0 1-.5.5zm2 2A.5.5 0 0 1 13 9V6a.5.5 0 0 1 1 0v3a.5.5 0 0 1-.5.5z"/>
-                    </svg>
-                    <span>Library</span>
                 </div>
             </div>
 
@@ -96,12 +118,6 @@
                 </div>
             </div>
         </div>
-
-        <div class="sidebar-toggle">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0"/>
-            </svg>
-        </div>
     </div>
 
     <div class="app-container">
@@ -145,6 +161,10 @@
                         <span id="stream-off">Stream: Off</span>
                         <span id="stream-on" class="hidden">Stream: On</span>
                     </button>
+                    <!-- Search toggle (opens slide-down panel) -->
+                    <button id="header-search-toggle" aria-expanded="false" aria-controls="header-search-panel" title="Search chats" style="margin-left:8px;" class="sidebar-bottom-item">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zM12 6.5A5.5 5.5 0 1 1 1 6.5 5.5 5.5 0 0 1 12 6.5z"/></svg>
+                    </button>
                 </div>
                 <div id="auth-controls" style="display:flex;align-items:center;gap:8px;margin-left:12px;">
                     <div id="header-user" style="display:flex;align-items:center;gap:8px;">
@@ -156,6 +176,16 @@
                     <button id="settings-btn" class="sidebar-bottom-item" style="display:none;">Settings</button>
                     <button id="profile-btn" class="sidebar-bottom-item" style="display:none;">Profile</button>
                     <button id="logout-btn" class="sidebar-bottom-item" style="display:none;">Logout</button>
+                    <!-- Agent logs button -->
+                    <button id="agent-logs-btn" class="sidebar-bottom-item" title="Agent Logs" style="margin-left:8px">Agent Logs</button>
+                </div>
+            </div>
+
+            <!-- Header slide-down search panel -->
+            <div id="header-search-panel" class="header-search-panel" aria-hidden="true">
+                <div style="max-width:900px;margin:10px auto;display:flex;gap:8px;align-items:center;padding:8px 12px;">
+                    <input id="header-search-input" type="search" placeholder="Search chats or documents" style="flex:1;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text-color);outline:none;" />
+                    <button id="header-search-close" class="sidebar-bottom-item">Close</button>
                 </div>
             </div>
 
