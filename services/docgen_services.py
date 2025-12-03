@@ -53,8 +53,15 @@ def _generate_pdf(title: str, content: List[Dict[str, Any]]) -> str:
     Returns:
         Absolute path to generated PDF
     """
+    import json
+    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
+        f.write(f"\n[_generate_pdf] Called with title={title}, content_blocks={len(content)}\n")
+    
     filename = generate_unique_filename("pdf")
     filepath = get_full_document_path(filename)
+    
+    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
+        f.write(f"[_generate_pdf] Creating PDF at: {filepath}\n")
     
     # Create PDF
     doc = SimpleDocTemplate(
@@ -104,7 +111,12 @@ def _generate_pdf(title: str, content: List[Dict[str, Any]]) -> str:
     story.append(Spacer(1, 0.2 * inch))
     
     # Process content blocks
-    for block in content:
+    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
+        f.write(f"[_generate_pdf] Processing {len(content)} content blocks\n")
+    
+    for i, block in enumerate(content):
+        with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
+            f.write(f"[_generate_pdf] Block {i}: {list(block.keys())}\n")
         if "h1" in block:
             story.append(Paragraph(block["h1"], custom_heading1))
             story.append(Spacer(1, 0.1 * inch))
@@ -161,7 +173,16 @@ def _generate_pdf(title: str, content: List[Dict[str, Any]]) -> str:
                     pass
     
     # Build PDF
+    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
+        f.write(f"[_generate_pdf] Story has {len(story)} elements, building PDF...\n")
+    
     doc.build(story)
+    
+    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
+        import os
+        file_size = os.path.getsize(filepath) if os.path.exists(filepath) else 0
+        f.write(f"[_generate_pdf] PDF built successfully, file size: {file_size} bytes\n")
+    
     return filepath
 
 
@@ -520,6 +541,10 @@ def generate_document(doc_payload: Dict[str, Any]) -> str:
     Raises:
         ValueError: If document type is not supported or payload is invalid.
     """
+    import json
+    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
+        f.write(f"\n[generate_document] received payload: {json.dumps(doc_payload, indent=2)}\n")
+    
     # Validate payload
     if not isinstance(doc_payload, dict):
         raise ValueError("Payload must be a dictionary")
@@ -527,6 +552,9 @@ def generate_document(doc_payload: Dict[str, Any]) -> str:
     doc_type = doc_payload.get("type", "").lower()
     title = doc_payload.get("title", "Untitled Document")
     content = doc_payload.get("content", [])
+    
+    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
+        f.write(f"[generate_document] type={doc_type}, title={title}, content_blocks={len(content)}\n")
     
     if not isinstance(content, list):
         raise ValueError("Content must be a list of content blocks")
@@ -552,4 +580,5 @@ def generate_document(doc_payload: Dict[str, Any]) -> str:
             f"Unsupported document type '{doc_type}'. "
             "Supported types: pdf, docx, xlsx, pptx"
         )
+
 

@@ -1,4 +1,6 @@
 from flask import Blueprint, jsonify, request, Response
+import re
+import threading
 
 from config import DEFAULT_CHAT_SYSTEM_PROMPT
 from services import chat_history
@@ -22,6 +24,71 @@ def chat():
     if not user_message:
         return jsonify({"error": "message is required"}), 400
 
+    # DOCUMENT GENERATION DETECTION
+    # Check if user is asking to generate/create a document (PDF, contract, etc.)
+    doc_keywords = r'\b(create|generate|make|produce|draft|write|build|prepare)\b.*\b(pdf|document|contract|agreement|form|template|file|report|invoice|receipt|deed|lease|rental|license)\b'
+    doc_match = re.search(doc_keywords, user_message.lower())
+    
+    if doc_match:
+        # Route to agent planning pipeline instead of simple chat
+        try:
+            from services.agent_services import plan_and_run
+            
+            # Write to log to confirm we're here
+            with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
+                f.write(f"\n[ollama_routes] Document detected in message: {user_message}\n")
+            
+            # Store user message in chat history immediately
+            session_id = chat_history.ensure_session(session_id, user_message[:60])
+            chat_history.append_message(session_id, "user", user_message)
+            chat_history.append_message(
+                session_id, 
+                "assistant", 
+                "Document generation started. Check Agent Logs for progress..."
+            )
+            
+            # Transform the user request into an agent goal
+            goal = (
+                f"The user is asking you to create a document. Their request: {user_message}\n\n"
+                f"Plan the steps to gather any required information, ask the user for missing details if needed, "
+                f"and then generate a downloadable document using the doc_generate tool."
+            )
+            
+            # Launch agent planning in background thread (non-blocking)
+            def run_agent_async():
+                try:
+                    import traceback
+                    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
+                        f.write(f"\n[run_agent_async] Starting agent with goal: {goal[:100]}...\n")
+                    plan_and_run(goal)  # This emits SSE events as it runs
+                    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
+                        f.write(f"\n[run_agent_async] Agent completed!\n")
+                except Exception as e:
+                    import traceback
+                    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
+                        f.write(f"\n[run_agent_async] ERROR: {e}\n{traceback.format_exc()}\n")
+            
+            thread = threading.Thread(target=run_agent_async, daemon=True)
+            thread.start()
+            
+            with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
+                f.write(f"[ollama_routes] Thread started, returning HTTP response\n")
+            
+            # Return immediately with streaming flag
+            return jsonify({
+                "response": "Document generation started. Check Agent Logs for progress...",
+                "session_id": session_id,
+                "is_document_generation": True
+            })
+        except Exception as e:
+            # Fall back to regular chat if agent fails
+            import traceback
+            with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
+                f.write(f"\n[ollama_routes] EXCEPTION: {e}\n{traceback.format_exc()}\n")
+            print(f"Agent pipeline routing error: {e}")
+            traceback.print_exc()
+            pass
+
     history = []
     if session_id:
         session = chat_history.get_session(session_id)
@@ -32,7 +99,7 @@ def chat():
     chat_history.append_message(session_id, "user", user_message)
 
     if mode == "rag":
-        rag_payload = query_ollama_with_rag(user_message)
+        rag_payload = query_ollama_with_rag(user_message, session_id=session_id)
         bot_response = rag_payload["answer"]
     else:
         bot_response = llm_chat(
@@ -103,114 +170,3 @@ def chat():
             "context": rag_payload.get("context"),
         }
     )
-
-
-
-
-@bp.route("/chat/stream", methods=["POST"])
-def chat_stream():
-    """Stream assistant tokens back to the browser as server-sent events (SSE).
-
-    Clients should POST JSON { message, session_id? } and will receive a
-    `text/event-stream` where each `data:` line contains a token chunk.
-    After the stream completes a final JSON event with `event: done` is sent.
-    """
-    data = request.get_json(force=True) or {}
-    user_message = (data.get("message") or "").strip()
-    session_id = data.get("session_id")
-
-    if not user_message:
-        return jsonify({"error": "message is required"}), 400
-
-    history = []
-    if session_id:
-        session = chat_history.get_session(session_id)
-        if session:
-            history = session.get("messages", [])
-
-    session_id = chat_history.ensure_session(session_id, user_message[:60])
-    chat_history.append_message(session_id, "user", user_message)
-
-    def generate():
-        full = ""
-        try:
-            for chunk in stream_llm_chat(DEFAULT_CHAT_SYSTEM_PROMPT, user_message, history=history):
-                full += chunk
-                # Send as SSE data event
-                yield f"data: {chunk}\n\n"
-        except Exception as e:
-            yield f"data: [ERROR] {str(e)}\n\n"
-        # Persist the assembled assistant message
-        try:
-            chat_history.append_message(session_id, "assistant", full)
-        except Exception:
-            pass
-
-        # Notify client the stream is done
-        import json as _json
-
-        yield f"event: done\ndata: {_json.dumps({'session_id': session_id, 'response': full})}\n\n"
-
-    return Response(generate(), mimetype="text/event-stream")
-
-
-
-@bp.route('/chat/stream/start', methods=['POST'])
-def chat_stream_start():
-    """Begin a stream session. Client POSTs { message, session_id? } and receives { stream_id }.
-
-    The client then connects with EventSource to `/api/chat/stream/{stream_id}`.
-    """
-    data = request.get_json(force=True) or {}
-    user_message = (data.get('message') or '').strip()
-    session_id = data.get('session_id')
-
-    if not user_message:
-        return jsonify({'error': 'message is required'}), 400
-
-    history = []
-    if session_id:
-        session = chat_history.get_session(session_id)
-        if session:
-            history = session.get('messages', [])
-
-    # Reserve a session id and persist user message immediately
-    session_id = chat_history.ensure_session(session_id, user_message[:60])
-    chat_history.append_message(session_id, 'user', user_message)
-
-    sid = str(uuid4())
-    _STREAM_REGISTRY[sid] = {'message': user_message, 'session_id': session_id, 'history': history}
-    return jsonify({'stream_id': sid, 'session_id': session_id})
-
-
-
-@bp.route('/chat/stream/<stream_id>', methods=['GET'])
-def chat_stream_event(stream_id: str):
-    """EventSource endpoint that streams token events for a reserved stream_id."""
-    payload = _STREAM_REGISTRY.pop(stream_id, None)
-    if not payload:
-        return jsonify({'error': 'invalid stream id'}), 404
-
-    user_message = payload['message']
-    session_id = payload['session_id']
-    history = payload.get('history', [])
-
-    def generate():
-        full = ''
-        try:
-            for chunk in stream_llm_chat(DEFAULT_CHAT_SYSTEM_PROMPT, user_message, history=history):
-                full += chunk
-                # Proper SSE framing
-                yield f'data: {chunk}\n\n'
-        except Exception as e:
-            yield f'data: [ERROR] {str(e)}\n\n'
-
-        try:
-            chat_history.append_message(session_id, 'assistant', full)
-        except Exception:
-            pass
-
-        import json as _json
-        yield f'event: done\ndata: {_json.dumps({"session_id": session_id, "response": full})}\n\n'
-
-    return Response(generate(), mimetype='text/event-stream')

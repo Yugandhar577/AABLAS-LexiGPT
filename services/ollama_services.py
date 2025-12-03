@@ -162,12 +162,12 @@ def query_ollama(prompt: str) -> str:
     return llm_chat(system_prompt=None, user_prompt=prompt)
 
 
-def query_ollama_with_rag(user_query: str, top_k: int = 3) -> dict:
+def query_ollama_with_rag(user_query: str, top_k: int = 3, session_id: str | None = None) -> dict:
     """
     Uses the RAG pipeline to ground the response in legal context.
     Returns the answer and the snippets that were supplied to the model.
     """
-    context_docs = get_relevant_context(user_query, top_k=top_k)
+    context_docs = get_relevant_context(user_query, top_k=top_k, session_id=session_id)
 
     if context_docs:
         # Build a numbered context block with short snippets

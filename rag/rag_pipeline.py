@@ -12,12 +12,12 @@ from .retriever import Retriever, RetrieverResult
 _RETRIEVER = Retriever()
 
 
-def get_relevant_context(query: str, top_k: int = 3) -> List[Dict]:
+def get_relevant_context(query: str, top_k: int = 3, session_id: str | None = None) -> List[Dict]:
     """Return structured context snippets for the given query.
 
     Each entry is a dict containing: id (int), title, content, score, snippet.
     """
-    hits: List[RetrieverResult] = _RETRIEVER.search(query, top_k=top_k)
+    hits: List[RetrieverResult] = _RETRIEVER.search(query, top_k=top_k, session_id=session_id)
     results: List[Dict] = []
     for idx, hit in enumerate(hits, start=1):
         # Create a short snippet from the content for prompting and display

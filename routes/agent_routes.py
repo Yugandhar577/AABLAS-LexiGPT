@@ -32,7 +32,17 @@ def run_agent():
 def stop_agent():
     global _agent_instance
     if _agent_instance:
-        _agent_instance.stop()
+        try:
+            _agent_instance.stop()
+        except Exception:
+            pass
+        # also set the global stop event for agent services
+        try:
+            from services.agent_services import AGENT_STOP_EVENT
+
+            AGENT_STOP_EVENT.set()
+        except Exception:
+            pass
         return jsonify({"status": "stopping"})
     return jsonify({"status": "not_running"}), 404
 
@@ -134,7 +144,30 @@ def stream_logs():
     return Response(stream_with_context(gen()), mimetype="text/event-stream")
 
 
-from services.agent_services import plan_and_run
+from services.agent_services import plan_and_run, AGENT_EVENT_QUEUE
+
+
+@bp.route('/stream_events')
+def stream_events():
+    """Stream structured agent events (JSON) via Server-Sent Events.
+
+    Clients should connect with EventSource to receive events like:
+      {type: 'step_started'|'step_result'|'file_download'|'planner_output'|'agent_stopped', ...}
+    """
+    def gen():
+        try:
+            while True:
+                try:
+                    evt = AGENT_EVENT_QUEUE.get(timeout=0.5)
+                except Exception:
+                    # keep-alive comment
+                    yield ': keep-alive\n\n'
+                    continue
+                yield f"data: {evt}\n\n"
+        except GeneratorExit:
+            return
+
+    return Response(stream_with_context(gen()), mimetype='text/event-stream')
 
 
 @bp.route("/plan-run", methods=["POST"])
@@ -148,6 +181,35 @@ def plan_run():
     if not goal:
         return jsonify({"error": "no goal provided"}), 400
     try:
+        out = plan_and_run(goal)
+        return jsonify(out)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/generate-document", methods=["POST"])
+def generate_document_route():
+    """
+    POST JSON: { "request": "Create a rental agreement PDF", "doc_type": "contract" (optional), "format": "pdf" (optional) }
+    
+    This endpoint recognizes a natural language document generation request,
+    enriches it with the agent planner to fill in required fields, and generates the document.
+    Returns: the full plan+run result including the file_download event and download URL.
+    """
+    data = request.get_json(force=True) or {}
+    user_request = data.get("request")
+    if not user_request:
+        return jsonify({"error": "no request provided"}), 400
+    
+    try:
+        # Transform the user request into an agent goal that includes document generation
+        goal = (
+            f"You are a document generation agent. The user wants: {user_request}\n\n"
+            f"Plan the steps to gather any required information, ask the user for missing details if needed, "
+            f"and then generate a downloadable document using the doc_generate tool."
+        )
+        
+        # Run the agent with the enriched goal
         out = plan_and_run(goal)
         return jsonify(out)
     except Exception as e:

@@ -142,6 +142,21 @@ function setupEventListeners() {
     document.getElementById('agent-start').addEventListener('click', startAgent);
     document.getElementById('agent-stop').addEventListener('click', stopAgent);
     document.getElementById('agent-clear').addEventListener('click', () => { document.getElementById('agent-log-container').innerHTML = ''; });
+    // Show Reasoning toggle and refresh
+    const reasoningToggle = document.getElementById('agent-show-reasoning');
+    if (reasoningToggle) {
+        reasoningToggle.addEventListener('change', (e) => {
+            const panel = document.getElementById('agent-reasoning-container');
+            if (e.target.checked) {
+                panel.classList.remove('hidden');
+                loadAgentReasoning();
+            } else {
+                panel.classList.add('hidden');
+            }
+        });
+    }
+    const reasoningRefresh = document.getElementById('agent-refresh-reasoning');
+    if (reasoningRefresh) reasoningRefresh.addEventListener('click', loadAgentReasoning);
     
     // Modal Closers
     document.querySelectorAll('.modal-close').forEach(btn => {
@@ -169,6 +184,19 @@ function setupEventListeners() {
         state.streamMode = e.target.checked;
         localStorage.setItem('STREAM_MODE', state.streamMode);
         showToast(`Streaming is now ${state.streamMode ? 'ON' : 'OFF'}`);
+    });
+
+    // Delegated handler for next-step chips (insert into prompt when clicked)
+    document.addEventListener('click', (e) => {
+        const target = e.target;
+        if (target && target.classList && target.classList.contains('chip')) {
+            const text = target.textContent || '';
+            const input = document.getElementById('prompt-input');
+            if (input) {
+                input.value = text;
+                input.focus();
+            }
+        }
     });
     
     // Document Generation
@@ -314,6 +342,20 @@ async function submitMessage() {
 
             state.activeSession = data.session_id;
             
+            // If this is a document generation request, show Agent Logs and connect to agent stream
+            if (data.is_document_generation) {
+                botContentEl.textContent = data.response;
+                botContentEl.classList.remove('typing-indicator');
+                
+                // Auto-open Agent Logs modal to show real-time progress
+                showAgentLogsModal();
+                
+                // Connect to agent stream to see events as they happen
+                connectAgentStream();
+                
+                return;
+            }
+            
             // Render markdown response
             if (typeof marked !== 'undefined' && data.response) {
                 try {
@@ -452,6 +494,32 @@ function appendMessage(text, role, isLoading = false) {
     messageWrapper.className = 'message-content-wrapper';
     messageWrapper.appendChild(bubble);
     messageWrapper.appendChild(timestamp);
+    // Collapsible area for reasoning / plan attached to bot messages
+    const extra = document.createElement('div');
+    extra.className = 'message-extra';
+    // Toggle control
+    const extraToggle = document.createElement('button');
+    extraToggle.className = 'extra-toggle btn-text';
+    extraToggle.textContent = 'Show reasoning ▾';
+    extraToggle.style.marginTop = '6px';
+    extraToggle.style.display = role === 'bot' ? 'inline-block' : 'none';
+    const extraContent = document.createElement('div');
+    extraContent.className = 'extra-content hidden';
+    extra.appendChild(extraToggle);
+    extra.appendChild(extraContent);
+    messageWrapper.appendChild(extra);
+
+    // Toggle behavior
+    extraToggle.addEventListener('click', (e) => {
+        const open = !extraContent.classList.contains('hidden');
+        if (open) {
+            extraContent.classList.add('hidden');
+            extraToggle.textContent = 'Show reasoning ▾';
+        } else {
+            extraContent.classList.remove('hidden');
+            extraToggle.textContent = 'Hide reasoning ▴';
+        }
+    });
     
     // Add copy button for non-loading messages with content
     if (!isLoading && text && text.trim().length > 0 && role === 'bot') {
@@ -534,6 +602,68 @@ function appendMessage(text, role, isLoading = false) {
     }
     
     return id;
+}
+
+// Attach reasoning/evaluation text to the last bot message's extra content
+function attachReasoningToLastBot(itemHtml) {
+    const botMsgs = document.querySelectorAll('.chat-message.bot-message');
+    if (!botMsgs || botMsgs.length === 0) return false;
+    const last = botMsgs[botMsgs.length - 1];
+    const extraContent = last.querySelector('.extra-content');
+    if (!extraContent) return false;
+    // Append a block
+    const block = document.createElement('div');
+    block.style.padding = '8px 0';
+    block.innerHTML = itemHtml;
+    extraContent.appendChild(block);
+    return true;
+}
+
+function renderPlanInChat(planObj) {
+    // Create a plan card that looks like a bot message attachment
+    const card = document.createElement('div');
+    card.className = 'plan-card';
+    const header = document.createElement('div');
+    header.className = 'plan-header';
+    header.innerHTML = `<strong>Planned Actions</strong> <span class="plan-summary" style="color:var(--text-muted);font-size:0.9rem;margin-left:8px">${planObj.rationale || ''}</span>`;
+    card.appendChild(header);
+    const list = document.createElement('ol');
+    list.className = 'plan-steps';
+    (planObj.steps || []).forEach(s => {
+        const li = document.createElement('li');
+        li.innerHTML = `<div style="font-weight:600">${escapeHtml(s.title || s.title)}</div><div style="color:var(--text-secondary);font-size:0.9rem">${escapeHtml(s.expectations || '')}</div>`;
+        list.appendChild(li);
+    });
+    card.appendChild(list);
+    // Next steps chips
+    if (planObj.next_steps && planObj.next_steps.length) {
+        const chips = document.createElement('div');
+        chips.className = 'plan-chips';
+        chips.style.marginTop = '8px';
+        planObj.next_steps.forEach(ns => {
+            const btn = document.createElement('button');
+            btn.className = 'chip';
+            btn.textContent = ns;
+            btn.addEventListener('click', (e) => {
+                elements.promptInput.value = ns;
+                elements.promptInput.focus();
+            });
+            chips.appendChild(btn);
+        });
+        card.appendChild(chips);
+    }
+
+    // Insert as a bot-like system message at the bottom of chat
+    const wrapper = document.createElement('div');
+    wrapper.className = 'chat-message bot-message plan-message';
+    const avatar = document.createElement('div'); avatar.className = 'message-avatar'; avatar.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/></svg>';
+    const content = document.createElement('div'); content.className = 'message-content-wrapper';
+    const bubble = document.createElement('div'); bubble.className = 'message-bubble'; bubble.appendChild(card);
+    content.appendChild(bubble);
+    wrapper.appendChild(avatar);
+    wrapper.appendChild(content);
+    elements.chatHistory.appendChild(wrapper);
+    elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight;
 }
 
 function startNewChat() {
@@ -659,25 +789,82 @@ function connectAgentStream() {
     if (state.agentEventSource) return; // already connected
     const container = document.getElementById('agent-log-container');
     
-    state.agentEventSource = new EventSource(`${API_BASE}/api/agent/stream`);
+    state.agentEventSource = new EventSource(`${API_BASE}/api/agent/stream_events`);
     state.agentEventSource.onmessage = (e) => {
         try {
             const data = JSON.parse(e.data);
             const entry = document.createElement('div');
             entry.className = 'log-entry';
             const ts = new Date().toLocaleTimeString();
-            
-            // Format data for better readability in the log
-            let content;
-            if (data.action && data.details) {
-                 content = `<span style="color:#6366f1">${data.action}</span>: ${data.details}`;
+
+            // Handle structured event types
+            if (data.type === 'file_download') {
+                const url = data.url.startsWith('/') ? API_BASE + data.url : data.url;
+                entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <span style="color:#059669">File</span>: <a href="${url}" download="${data.filename}">${data.filename}</a>`;
+            } else if (data.type === 'next_steps') {
+                // Render chips for next steps
+                const steps = data.next_steps || [];
+                const chips = steps.map(s => `<button class="chip">${s}</button>`).join(' ');
+                entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <strong>Next Steps:</strong> ${chips}`;
+            } else if (data.type === 'step_started') {
+                entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <span style="color:#2563eb">Step started</span>: ${data.title} (${data.tool})`;
+                // Also render an action card for this step
+                renderActionCard({type:'step_started', step_id:data.step_id, title:data.title, tool:data.tool, input:data.input});
+            } else if (data.type === 'step_result') {
+                const ok = data.ok ? '<span style="color:green">OK</span>' : '<span style="color:red">FAIL</span>';
+                entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <span style="color:#6b7280">Result</span>: ${data.title} ${ok} - ${data.logs || ''}`;
+                renderActionCard({type:'step_result', step_id:data.step_id, title:data.title, ok:data.ok, logs:data.logs, output_preview:data.output_preview});
+            } else if (data.type === 'planner_output') {
+                // Planner output may include raw JSON; attempt to parse and render a plan card in chat
+                let parsed = null;
+                try {
+                    if (typeof data.raw === 'string') {
+                        parsed = JSON.parse(data.raw);
+                    } else {
+                        parsed = data.raw;
+                    }
+                } catch (e) {
+                    // try to extract a JSON block
+                    try {
+                        const txt = data.raw || '';
+                        const start = txt.indexOf('{');
+                        const end = txt.lastIndexOf('}');
+                        if (start !== -1 && end !== -1 && end > start) {
+                            parsed = JSON.parse(txt.slice(start, end + 1));
+                        }
+                    } catch (e2) {
+                        parsed = null;
+                    }
+                }
+
+                if (parsed) {
+                    try { renderPlanInChat(parsed); } catch (e) { /* ignore render errors */ }
+                    entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <strong>Planner output</strong>: rendered plan in chat`;
+                    renderActionCard({type:'planner', plan: parsed});
+                } else {
+                    const txt = typeof data.raw === 'string' ? data.raw : JSON.stringify(data.raw || data);
+                    entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <pre style="white-space:pre-wrap; margin:0;">${escapeHtml(txt)}</pre>`;
+                }
+                // also add to reasoning panel if visible
+                if (document.getElementById('agent-show-reasoning') && document.getElementById('agent-show-reasoning').checked) addReasoningEntryToPanel(data);
+
+            } else if (data.type === 'reason' || data.type === 'run_complete' || data.type === 'evaluation') {
+                // Render reasoning/evaluation as a collapsible card in the Agent logs
+                renderReasoningCard(data);
+                entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <span style="color:var(--accent-primary);font-weight:600">${data.type.toUpperCase()}</span>`;
+                renderActionCard({type: data.type, data: data});
+            } else if (data.type === 'need_input') {
+                // Render a friendly input form for required fields
+                renderNeedInputForm(data);
+                entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <strong>Awaiting input for step</strong>: ${data.title}`;
+            } else if (data.type === 'agent_stopped') {
+                entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <span style="color:#ef4444">Agent stopped</span>`;
             } else {
-                 content = JSON.stringify(data);
+                entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> ${JSON.stringify(data)}`;
             }
-            
-            entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> ${content}`;
+
             container.appendChild(entry);
-            
+
             // Auto scroll
             if (!document.getElementById('agent-pause-autoscroll').checked) {
                 container.scrollTop = container.scrollHeight;
@@ -696,6 +883,82 @@ async function stopAgent() {
         state.agentEventSource.close();
         state.agentEventSource = null;
     }
+}
+
+function renderReasoningCard(data) {
+    const container = document.getElementById('agent-log-container');
+    if (!container) return;
+    const card = document.createElement('div');
+    card.className = 'reasoning-card';
+    
+    // Collapsible header
+    const header = document.createElement('div');
+    header.className = 'reasoning-header';
+    header.style.cursor = 'pointer';
+    header.style.display = 'flex';
+    header.style.alignItems = 'center';
+    header.style.justifyContent = 'space-between';
+    
+    const title = document.createElement('span');
+    title.style.fontWeight = '700';
+    title.style.color = 'var(--accent-primary)';
+    title.textContent = data.type === 'evaluation' ? '✅ Evaluation' : data.type === 'reason' ? '💭 Reasoning' : '✓ Run Complete';
+    header.appendChild(title);
+    
+    const toggle = document.createElement('span');
+    toggle.textContent = '▾';
+    toggle.style.color = 'var(--text-secondary)';
+    toggle.style.fontSize = '1.2rem';
+    header.appendChild(toggle);
+    
+    const content = document.createElement('div');
+    content.className = 'reasoning-content';
+    content.style.display = 'none';
+    
+    // Populate content
+    if (data.type === 'evaluation') {
+        const summary = escapeHtml(data.summary || data.result || '');
+        const success = data.success ? '✅ SUCCESS' : '❌ FAILED';
+        content.innerHTML = `<div style="margin-bottom:8px"><strong>${success}</strong></div><div>${summary}</div>`;
+        if (data.sources && data.sources.length > 0) {
+            const src = document.createElement('div');
+            src.style.marginTop = '8px';
+            src.style.borderTop = '1px solid var(--border-color)';
+            src.style.paddingTop = '8px';
+            src.innerHTML = '<strong>Sources:</strong>';
+            data.sources.forEach(s => {
+                const item = document.createElement('div');
+                item.style.marginTop = '4px';
+                item.style.fontSize = '0.9rem';
+                item.innerHTML = `<span style="color:var(--accent-primary)">${escapeHtml(s.title || s.id || 'Source')}</span>: ${escapeHtml(s.snippet || '')}`;
+                src.appendChild(item);
+            });
+            content.appendChild(src);
+        }
+    } else if (data.type === 'reason') {
+        const txt = typeof data.reason === 'string' ? data.reason : JSON.stringify(data, null, 2);
+        const pre = document.createElement('pre');
+        pre.style.margin = '0';
+        pre.style.whiteSpace = 'pre-wrap';
+        pre.style.fontSize = '0.9rem';
+        pre.textContent = txt;
+        content.appendChild(pre);
+    } else if (data.type === 'run_complete') {
+        const summary = escapeHtml(data.summary || JSON.stringify(data, null, 2));
+        content.innerHTML = `<div>${summary}</div>`;
+    }
+    
+    // Toggle behavior
+    header.addEventListener('click', () => {
+        const isOpen = content.style.display !== 'none';
+        content.style.display = isOpen ? 'none' : 'block';
+        toggle.textContent = isOpen ? '▾' : '▴';
+    });
+    
+    card.appendChild(header);
+    card.appendChild(content);
+    container.appendChild(card);
+    container.scrollTop = container.scrollHeight;
 }
 
 /* --- Auth Logic --- */
@@ -993,6 +1256,10 @@ function showModal(name, subType) {
     if (name === 'auth') toggleAuthMode(subType || 'login');
 }
 
+function showAgentLogsModal() {
+    showModal('agent');
+}
+
 function hideModals() {
     elements.modals.overlay.classList.add('hidden');
     Object.entries(elements.modals).forEach(([key, el]) => {
@@ -1027,16 +1294,40 @@ function handleFileUpload(e) {
 function handleMultipleFileUpload(files) {
     try {
         if (!files || files.length === 0) return;
-        
-        const fileNames = Array.from(files).map(f => f.name).join(', ');
-        showToast(`Uploaded ${files.length} file(s): ${fileNames}`, 'success');
-        
-        const fileList = Array.from(files).map((f, i) => `${i + 1}. ${f.name}`).join('\n');
-        appendMessage(`[Uploaded Documents]\n${fileList}`, 'user');
-        elements.app.classList.add('chat-active');
-        
-        // Reset file input
-        elements.fileInput.value = '';
+        const form = new FormData();
+        for (const f of files) {
+            form.append('files', f, f.name);
+        }
+        // include session id if available
+        if (state.activeSession) form.append('session_id', state.activeSession);
+
+        showToast('Uploading files to server...', 'info');
+
+        fetch(`${API_BASE}/api/upload`, {
+            method: 'POST',
+            headers: state.authToken ? { 'Authorization': `Bearer ${state.authToken}` } : undefined,
+            body: form
+        }).then(async res => {
+            if (!res.ok) {
+                const txt = await res.text();
+                throw new Error(txt || 'Upload failed');
+            }
+            const data = await res.json();
+            if (data && data.results) {
+                const fileList = data.results.map(r => `${r.file}: ${r.inserted_chunks || r.error}`).join('\n');
+                appendMessage(`[Uploaded Documents]\n${fileList}`, 'user');
+                showToast('Files uploaded and indexed', 'success');
+                elements.app.classList.add('chat-active');
+            } else {
+                showToast('Upload completed', 'success');
+            }
+        }).catch(err => {
+            showToast('File upload error: ' + err.message, 'error');
+            console.error('File upload error:', err);
+        }).finally(() => {
+            // Reset file input
+            elements.fileInput.value = '';
+        });
     } catch (err) {
         showToast('File upload error: ' + err.message, 'error');
         console.error('File upload error:', err);
@@ -1100,4 +1391,124 @@ function downloadFile(content, filename, mimeType) {
     a.download = filename;
     a.click();
     window.URL.revokeObjectURL(url);
+}
+
+function addReasoningEntryToPanel(data) {
+    const list = document.getElementById('agent-reasoning-list');
+    if (!list) return;
+    const item = document.createElement('div');
+    item.className = 'reasoning-item';
+    item.style.borderBottom = '1px dashed var(--border-color)';
+    item.style.padding = '8px 0';
+    const ts = new Date().toLocaleString();
+
+    // Render evaluation nicely if present
+    if (data.type === 'evaluation') {
+        const summary = data.summary || data.result || '';
+        const success = data.success ? '✅' : '❌';
+        const sources = (data.sources || []).map(s => `<div class="source"><strong>${s.title || s.id || 'Source'}</strong>: ${s.snippet || ''} <small style="color:var(--muted)">${s.id || ''}</small></div>`).join('');
+        item.innerHTML = `<div style="font-size:0.95rem;color:var(--muted)">[${ts}] <strong>Evaluation</strong> ${success}</div><div style="margin-top:6px">${summary}</div><div style="margin-top:8px">${sources}</div>`;
+    } else if (data.type === 'planner_output') {
+        const text = data.plan || data.raw || JSON.stringify(data, null, 2);
+        item.innerHTML = `<div style="font-size:0.95rem;color:var(--muted)">[${ts}] <strong>Planner Output</strong></div><pre style="white-space:pre-wrap;margin:6px 0">${escapeHtml(text)}</pre>`;
+    } else if (data.type === 'reason') {
+        const reasonText = data.reason || data.explain || JSON.stringify(data, null, 2);
+        item.innerHTML = `<div style="font-size:0.95rem;color:var(--muted)">[${ts}] <strong>Reasoning</strong></div><pre style="white-space:pre-wrap;margin:6px 0">${escapeHtml(typeof reasonText === 'string' ? reasonText : JSON.stringify(reasonText, null, 2))}</pre>`;
+    } else if (data.type === 'run_complete') {
+        item.innerHTML = `<div style="font-size:0.95rem;color:var(--muted)">[${ts}] <strong>Run Complete</strong></div><div style="margin-top:6px">${escapeHtml(JSON.stringify(data, null, 2))}</div>`;
+    } else {
+        item.innerHTML = `<div style="font-size:0.95rem;color:var(--muted)">[${ts}] <strong>${escapeHtml(data.type || 'event')}</strong></div><pre style="white-space:pre-wrap;margin:6px 0">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`;
+    }
+
+    list.prepend(item);
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (m) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; });
+}
+
+async function loadAgentReasoning() {
+    try {
+        const res = await fetch(`${API_BASE}/api/agent/logs`);
+        if (!res.ok) return;
+        const logs = await res.json();
+        const list = document.getElementById('agent-reasoning-list');
+        list.innerHTML = '';
+        // Filter logs for structured reasoning/evaluation entries
+        const combined = logs.filter(l => {
+            const t = l.type || l.get && l.get('type');
+            return ['reason','planner_output','evaluation','run_complete'].includes(t) || l.explain || l.plan || l.evaluation || l.reason;
+        }).slice(-200);
+        if (!combined || combined.length === 0) {
+            list.innerHTML = '<div class="log-entry system">No reasoning entries found.</div>';
+            return;
+        }
+        combined.forEach(entry => addReasoningEntryToPanel(entry));
+    } catch (e) {
+        console.error('Load agent reasoning failed', e);
+    }
+}
+
+function renderActionCard(card) {
+    const container = document.getElementById('agent-log-container');
+    if (!container) return;
+    const node = document.createElement('div');
+    node.className = 'action-card';
+    let inner = '';
+    if (card.type === 'step_started') {
+        inner = `<div class="action-title">Step started: ${escapeHtml(card.title)}</div><div class="action-meta">Tool: ${escapeHtml(card.tool)}</div>`;
+    } else if (card.type === 'step_result') {
+        inner = `<div class="action-title">Step result: ${escapeHtml(card.title)}</div><div class="action-meta">Status: ${card.ok ? 'OK' : 'FAIL'}</div><pre class="action-logs">${escapeHtml(card.logs || '')}</pre>`;
+    } else if (card.type === 'planner') {
+        inner = `<div class="action-title">Planner produced a plan</div><div class="action-meta">${escapeHtml((card.plan.rationale||'').toString())}</div>`;
+    } else if (card.type === 'evaluation') {
+        inner = `<div class="action-title">Evaluation</div><div class="action-meta">${escapeHtml(card.data.summary||'')}</div>`;
+    } else {
+        inner = `<div class="action-title">${escapeHtml(card.type)}</div><pre class="action-logs">${escapeHtml(JSON.stringify(card.data||card, null, 2))}</pre>`;
+    }
+    node.innerHTML = inner;
+    container.appendChild(node);
+    container.scrollTop = container.scrollHeight;
+}
+
+function renderNeedInputForm(data) {
+    const container = document.getElementById('agent-log-container');
+    if (!container) return;
+    const panel = document.createElement('div');
+    panel.className = 'need-input-panel';
+    const title = document.createElement('div'); title.className = 'action-title'; title.textContent = `Input required: ${data.title}`;
+    panel.appendChild(title);
+    const form = document.createElement('form');
+    form.className = 'need-input-form';
+    (data.fields || []).forEach(f => {
+        const wrapper = document.createElement('div'); wrapper.className = 'input-group';
+        const label = document.createElement('label'); label.textContent = f;
+        const inp = document.createElement('input'); inp.name = f; inp.placeholder = f; inp.className = 'text-input';
+        wrapper.appendChild(label); wrapper.appendChild(inp); form.appendChild(wrapper);
+    });
+    const submit = document.createElement('button'); submit.type = 'submit'; submit.className = 'btn-primary'; submit.textContent = 'Submit and generate document';
+    form.appendChild(submit);
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const payload = { fields: {} };
+        for (const [k,v] of formData.entries()) payload.fields[k] = v;
+        try {
+            const res = await fetch(`${API_BASE}/api/docgen`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ doc_type: 'contract', format: 'pdf', params: payload })
+            });
+            if (!res.ok) throw new Error('Doc generation failed');
+            const d = await res.json();
+            const filename = d.filename || d.file || 'document.pdf';
+            const link = document.createElement('a'); link.href = `${API_BASE}/api/docgen/download/${filename}`; link.textContent = `Download ${filename}`; link.className='btn-primary'; link.style.display='inline-block'; link.style.marginTop='8px';
+            panel.appendChild(link);
+            showToast('Document generated', 'success');
+        } catch (err) {
+            showToast('Generation failed: '+err.message, 'error');
+        }
+    });
+    panel.appendChild(form);
+    container.appendChild(panel);
+    container.scrollTop = container.scrollHeight;
 }

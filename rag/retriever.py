@@ -57,7 +57,7 @@ class Retriever:
         ]
 
     # ------------------------------------------------------------------ #
-    def search(self, query: str, top_k: int = 3) -> List[RetrieverResult]:
+    def search(self, query: str, top_k: int = 3, session_id: str | None = None) -> List[RetrieverResult]:
         combined: List[RetrieverResult] = []
 
         # 1) Search chat history first (gives user-specific context)
@@ -79,7 +79,9 @@ class Retriever:
         # 2) Search legal corpus
         if self.vdb:
             try:
-                hits = self.vdb.search(query, top_k=top_k)
+                # If a session_id is provided, scope the vector DB search to that session
+                where = {"session_id": session_id} if session_id else None
+                hits = self.vdb.search(query, top_k=top_k, where=where)
                 if hits:
                     for hit in hits:
                         combined.append(

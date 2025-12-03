@@ -56,6 +56,14 @@
                     <select id="agent-filter-select" class="select-input"><option value="all">All Actions</option></select>
                 </div>
                 <label class="checkbox-label"><input type="checkbox" id="agent-pause-autoscroll" /> <span>Pause Scroll</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="agent-show-reasoning" /> <span>Show Reasoning</span></label>
+            </div>
+            <div id="agent-reasoning-container" class="reasoning-panel hidden" style="padding:12px;border-top:1px solid var(--border-color);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <strong>Structured Reasoning & Evaluations</strong>
+                    <button id="agent-refresh-reasoning" class="btn-xs btn-secondary">Refresh</button>
+                </div>
+                <div id="agent-reasoning-list" style="max-height:220px;overflow:auto;">No reasoning loaded.</div>
             </div>
             <div id="agent-log-container" class="terminal-view"><div class="log-entry system">Waiting for agent activity...</div></div>
         </div>
