@@ -44,43 +44,60 @@ document.addEventListener('DOMContentLoaded', async () => {
 /* --- Event Listeners Setup --- */
 function setupEventListeners() {
     // Input Handling
-    document.getElementById('send-btn').addEventListener('click', submitMessage);
-    elements.promptInput.addEventListener('keydown', (e) => {
+    const sendBtn = document.getElementById('send-btn');
+    if (sendBtn) sendBtn.addEventListener('click', submitMessage);
+    if (elements.promptInput) elements.promptInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') submitMessage();
     });
     
     // File Upload
-    document.getElementById('upload-icon').addEventListener('click', () => elements.fileInput.click());
-    elements.fileInput.addEventListener('change', handleFileUpload);
+    const uploadIcon = document.getElementById('upload-icon');
+    if (uploadIcon && elements.fileInput) uploadIcon.addEventListener('click', () => elements.fileInput.click());
+    if (elements.fileInput) elements.fileInput.addEventListener('change', handleFileUpload);
 
     // Sidebar Toggles
-    document.getElementById('sidebar-toggle-btn').addEventListener('click', toggleSidebar);
-    document.querySelector('.new-chat-btn').addEventListener('click', startNewChat);
+    const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+    if (sidebarToggleBtn) sidebarToggleBtn.addEventListener('click', toggleSidebar);
+    const newChatBtn = document.querySelector('.new-chat-btn');
+    if (newChatBtn) newChatBtn.addEventListener('click', startNewChat);
 
     // Sidebar Auth Buttons
-    document.getElementById('sidebar-login-btn').addEventListener('click', () => showModal('auth', 'login'));
-    document.getElementById('sidebar-register-btn').addEventListener('click', () => showModal('auth', 'register'));
-    elements.logoutBtn.addEventListener('click', handleLogout);
+    const sidebarLoginBtn = document.getElementById('sidebar-login-btn');
+    if (sidebarLoginBtn) sidebarLoginBtn.addEventListener('click', () => showModal('auth', 'login'));
+    const sidebarRegisterBtn = document.getElementById('sidebar-register-btn');
+    if (sidebarRegisterBtn) sidebarRegisterBtn.addEventListener('click', () => showModal('auth', 'register'));
+    if (elements.logoutBtn) elements.logoutBtn.addEventListener('click', handleLogout);
 
     // Auth Modals logic
-    document.getElementById('login-btn').addEventListener('click', () => showModal('auth', 'login')); // internal modal btn if needed
-    document.querySelector('.user-profile').addEventListener('click', () => showModal('profile'));
-    document.getElementById('show-register').addEventListener('click', () => toggleAuthMode('register'));
-    document.getElementById('show-login').addEventListener('click', () => toggleAuthMode('login'));
+    // Note: some pages use different IDs. Use null-checks to avoid runtime errors.
+    const loginTrigger = document.getElementById('login-btn');
+    if (loginTrigger) loginTrigger.addEventListener('click', () => showModal('auth', 'login'));
+    const userProfileEls = document.querySelectorAll('.user-profile');
+    userProfileEls.forEach(el => el.addEventListener('click', () => showModal('profile')));
+    const showRegister = document.getElementById('show-register');
+    if (showRegister) showRegister.addEventListener('click', () => toggleAuthMode('register'));
+    const showLogin = document.getElementById('show-login');
+    if (showLogin) showLogin.addEventListener('click', () => toggleAuthMode('login'));
     
     // Agent Logs
-    document.getElementById('sidebar-agent-btn').addEventListener('click', openAgentModal);
-    document.getElementById('agent-start').addEventListener('click', startAgent);
-    document.getElementById('agent-stop').addEventListener('click', stopAgent);
-    document.getElementById('agent-clear').addEventListener('click', () => { document.getElementById('agent-log-container').innerHTML = ''; });
+    const agentBtn = document.getElementById('sidebar-agent-btn');
+    if (agentBtn) agentBtn.addEventListener('click', openAgentModal);
+    const agentStart = document.getElementById('agent-start');
+    if (agentStart) agentStart.addEventListener('click', startAgent);
+    const agentStop = document.getElementById('agent-stop');
+    if (agentStop) agentStop.addEventListener('click', stopAgent);
+    const agentClear = document.getElementById('agent-clear');
+    if (agentClear) agentClear.addEventListener('click', () => { const c = document.getElementById('agent-log-container'); if(c) c.innerHTML = ''; });
     
     // Modal Closers
     document.querySelectorAll('.modal-close').forEach(btn => {
         btn.addEventListener('click', hideModals);
     });
-    elements.modals.overlay.addEventListener('click', (e) => {
-        if (e.target === elements.modals.overlay) hideModals();
-    });
+    if (elements.modals.overlay) {
+        elements.modals.overlay.addEventListener('click', (e) => {
+            if (e.target === elements.modals.overlay) hideModals();
+        });
+    }
 
     // Auth Submissions
     document.getElementById('login-submit').addEventListener('click', handleLogin);
@@ -88,11 +105,45 @@ function setupEventListeners() {
     document.getElementById('settings-logout-all').addEventListener('click', handleLogout);
 
     // Theme (Top Right)
-    document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+
+    // Stream Toggle (if present) - toggles streaming response mode
+    const streamToggle = document.getElementById('stream-toggle');
+    if (streamToggle) {
+        streamToggle.addEventListener('click', () => {
+            state.streamMode = !state.streamMode;
+            localStorage.setItem('STREAM_MODE', state.streamMode ? 'true' : 'false');
+            // update UI text if present
+            if (state.streamMode) {
+                streamToggle.textContent = 'Stream: On';
+            } else {
+                streamToggle.textContent = 'Stream: Off';
+            }
+            showToast(`Streaming ${state.streamMode ? 'enabled' : 'disabled'}`, 'info');
+        });
+        // initialize label
+        streamToggle.textContent = state.streamMode ? 'Stream: On' : 'Stream: Off';
+    }
 
     // Settings Navigation
-    document.getElementById('sidebar-settings-btn').addEventListener('click', () => showView('settings'));
-    document.getElementById('settings-back').addEventListener('click', () => showView('chat'));
+    const settingsBtn = document.getElementById('sidebar-settings-btn');
+    if (settingsBtn) settingsBtn.addEventListener('click', () => showView('settings'));
+    const settingsBack = document.getElementById('settings-back');
+    if (settingsBack) settingsBack.addEventListener('click', () => showView('chat'));
+
+    // Sidebar Search filtering (client-side filter of loaded chat list)
+    const sidebarSearch = document.getElementById('sidebar-search-input');
+    if (sidebarSearch) {
+        sidebarSearch.addEventListener('input', (e) => {
+            const q = sidebarSearch.value.trim().toLowerCase();
+            const items = document.querySelectorAll('.chats-list-item');
+            items.forEach(li => {
+                const txt = (li.textContent || '').toLowerCase();
+                li.style.display = q === '' || txt.includes(q) ? '' : 'none';
+            });
+        });
+    }
 }
 
 /* --- UI Helper Functions --- */

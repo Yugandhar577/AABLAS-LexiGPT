@@ -29,3 +29,32 @@
 {"ts": "2025-11-29T07:27:47.900473", "action": "process_end", "target": "data\\pdfs\\Chronological List of Central Acts.pdf", "status": "completed", "duration": 27.18}
 {"ts": "2025-11-29T07:27:47.901214", "action": "process_start", "target": "data\\pdfs\\COI_2024.pdf", "status": "started", "reason": "processing file"}
 {"ts": "2025-11-29T07:52:30.948433", "action": "process_end", "target": "data\\pdfs\\COI_2024.pdf", "status": "completed", "duration": 1483.05}
+{"ts": "2025-12-03T12:32:44.025534", "action": "agent_start", "status": "running"}
+{"ts": "2025-12-03T12:32:44.028518+00:00", "action": "decide", "reason": "rule-based: newer then larger", "candidates": ["data\\pdfs\\Right to information act.pdf", "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "data\\pdfs\\Legal Glossary Tri-Lingual.pdf", "data\\pdfs\\Insurance Regulatory and Development Authority Act, 1999.pdf", "data\\pdfs\\Information Technology Act, 2000.pdf", "data\\pdfs\\Indian Contract Act, 1872.pdf", "data\\pdfs\\Food Safety and Standards Act,.pdf", "data\\pdfs\\Consumer protection act.pdf", "data\\pdfs\\Chronological List of Central Acts.pdf", "data\\pdfs\\COI_2024.pdf"], "status": "planned"}
+{"ts": "2025-12-03T12:32:44.029223+00:00", "action": "process_start", "target": "data\\pdfs\\Right to information act.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-12-03T12:32:46.188251+00:00", "action": "extract_end", "target": "data\\pdfs\\Right to information act.pdf", "status": "completed", "duration": 2.16, "output_chars": 69204, "error": null}
+{"ts": "2025-12-03T12:32:46.189456+00:00", "action": "chunk_end", "target": "data\\pdfs\\Right to information act.pdf", "status": "completed", "duration": 0.0, "num_chunks": 82, "error": null}
+{"ts": "2025-12-03T12:33:03.155431+00:00", "action": "embed_batch", "batch_start": 0, "batch_size": 32, "total_chunks": 82, "status": "completed"}
+{"ts": "2025-12-03T12:33:14.177745+00:00", "action": "embed_batch", "batch_start": 32, "batch_size": 32, "total_chunks": 82, "status": "completed"}
+{"ts": "2025-12-03T12:33:23.529827+00:00", "action": "embed_batch", "batch_start": 64, "batch_size": 18, "total_chunks": 82, "status": "completed"}
+{"ts": "2025-12-03T12:33:23.530836+00:00", "action": "embed_end", "target": "data\\pdfs\\Right to information act.pdf", "status": "completed", "duration": 37.34, "num_embeddings": 82, "error": null}
+{"ts": "2025-12-03T12:33:23.619258+00:00", "action": "store_end", "target": "data\\pdfs\\Right to information act.pdf", "status": "completed", "duration": 0.09, "num_documents": 82, "error": null}
+{"ts": "2025-12-03T12:33:23.619831+00:00", "action": "process_end", "target": "data\\pdfs\\Right to information act.pdf", "status": "completed", "duration": 39.59}
+{"ts": "2025-12-03T12:33:23.620814+00:00", "action": "process_start", "target": "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-12-03T12:33:26.889961+00:00", "action": "extract_end", "target": "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "status": "completed", "duration": 3.27, "output_chars": 129793, "error": null}
+{"ts": "2025-12-03T12:33:26.890834+00:00", "action": "chunk_end", "target": "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "status": "completed", "duration": 0.0, "num_chunks": 153, "error": null}
+{"ts": "2025-12-03T12:33:39.496967+00:00", "action": "embed_batch", "batch_start": 0, "batch_size": 32, "total_chunks": 153, "status": "completed"}
+{"ts": "2025-12-03T12:33:51.395123+00:00", "action": "embed_batch", "batch_start": 32, "batch_size": 32, "total_chunks": 153, "status": "completed"}
+{"ts": "2025-12-03T12:34:02.631945+00:00", "action": "embed_batch", "batch_start": 64, "batch_size": 32, "total_chunks": 153, "status": "completed"}
+{"ts": "2025-12-03T12:34:14.351181+00:00", "action": "embed_batch", "batch_start": 96, "batch_size": 32, "total_chunks": 153, "status": "completed"}
+{"ts": "2025-12-03T12:34:24.759219+00:00", "action": "embed_batch", "batch_start": 128, "batch_size": 25, "total_chunks": 153, "status": "completed"}
+{"ts": "2025-12-03T12:34:24.760087+00:00", "action": "embed_end", "target": "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "status": "completed", "duration": 57.87, "num_embeddings": 153, "error": null}
+{"ts": "2025-12-03T12:34:24.807992+00:00", "action": "store_end", "target": "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "status": "completed", "duration": 0.05, "num_documents": 153, "error": null}
+{"ts": "2025-12-03T12:34:24.808873+00:00", "action": "process_end", "target": "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "status": "completed", "duration": 61.19}
+{"ts": "2025-12-03T12:34:24.810715+00:00", "action": "process_start", "target": "data\\pdfs\\Legal Glossary Tri-Lingual.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-12-03T12:34:39.404087+00:00", "action": "extract_end", "target": "data\\pdfs\\Legal Glossary Tri-Lingual.pdf", "status": "completed", "duration": 14.59, "output_chars": 214424, "error": null}
+{"ts": "2025-12-03T12:34:39.405150+00:00", "action": "chunk_end", "target": "data\\pdfs\\Legal Glossary Tri-Lingual.pdf", "status": "completed", "duration": 0.0, "num_chunks": 253, "error": null}
+{"ts": "2025-12-03T12:35:05.068895+00:00", "action": "embed_batch", "batch_start": 0, "batch_size": 32, "total_chunks": 253, "status": "completed"}
+{"ts": "2025-12-03T12:35:29.739975+00:00", "action": "embed_batch", "batch_start": 32, "batch_size": 32, "total_chunks": 253, "status": "completed"}
+{"ts": "2025-12-03T12:35:55.064826+00:00", "action": "embed_batch", "batch_start": 64, "batch_size": 32, "total_chunks": 253, "status": "completed"}
+{"ts": "2025-12-03T12:36:19.834585+00:00", "action": "embed_batch", "batch_start": 96, "batch_size": 32, "total_chunks": 253, "status": "completed"}
