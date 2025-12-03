@@ -36,3 +36,13 @@ def add_message(session_id: str):
         return jsonify({"error": "role/text required"}), 400
     chat_history.append_message(session_id, role, text)
     return jsonify({"status": "ok"})
+
+
+@bp.route("/<session_id>", methods=["DELETE"])
+def delete_chat(session_id: str):
+    """Delete a chat session by ID."""
+    try:
+        chat_history.delete_session(session_id)
+        return jsonify({"status": "deleted"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

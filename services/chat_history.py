@@ -99,3 +99,14 @@ def ensure_session(session_id: Optional[str], fallback_title: str) -> str:
         return session_id
     return create_session(fallback_title)
 
+
+def delete_session(session_id: str) -> None:
+    """Delete a chat session by ID."""
+    chats = _load()
+    if session_id in chats:
+        del chats[session_id]
+        _save(chats)
+    else:
+        raise ValueError(f"Session {session_id} not found")
+
+

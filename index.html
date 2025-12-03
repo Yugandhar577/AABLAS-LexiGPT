@@ -6,6 +6,10 @@
     <title>AI Legal Assistant</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <!-- Markdown rendering library -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- PDF viewer library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
     <div id="toast-container"></div>
@@ -17,17 +21,17 @@
                 <div id="login-form" class="auth-section">
                     <h3>Welcome Back</h3>
                     <p class="modal-subtitle">Login to access your case files</p>
-                    <div class="input-group"><label>Username</label><input type="text" id="login-username" /></div>
-                    <div class="input-group"><label>Password</label><input type="password" id="login-password" /></div>
+                    <div class="input-group"><label>Username</label><input type="text" id="login-username" placeholder="e.g. jdoe" /></div>
+                    <div class="input-group"><label>Password</label><input type="password" id="login-password" placeholder="••••••••" /></div>
                     <button id="login-submit" class="btn-primary full-width">Sign In</button>
                     <div class="auth-switch"><span>New here?</span><button id="show-register" class="btn-text">Create an account</button></div>
                 </div>
                 <div id="register-form" class="auth-section hidden">
                     <h3>Create Account</h3>
                     <p class="modal-subtitle">Get started with AI legal assistance</p>
-                    <div class="input-group"><label>Username</label><input type="text" id="reg-username" /></div>
-                    <div class="input-group"><label>Password</label><input type="password" id="reg-password" /></div>
-                    <div class="input-group"><label>Display Name</label><input type="text" id="reg-display" /></div>
+                    <div class="input-group"><label>Username</label><input type="text" id="reg-username" placeholder="Choose a username" /></div>
+                    <div class="input-group"><label>Password</label><input type="password" id="reg-password" placeholder="At least 6 characters" /></div>
+                    <div class="input-group"><label>Display Name</label><input type="text" id="reg-display" placeholder="Your full name" /></div>
                     <button id="register-submit" class="btn-primary full-width">Register</button>
                     <div class="auth-switch"><span>Already have an account?</span><button id="show-login" class="btn-text">Sign In</button></div>
                 </div>
@@ -37,11 +41,14 @@
         <div class="modal-card large-modal hidden" id="agent-modal">
             <button class="modal-close" data-close="agent">×</button>
             <div class="modal-header">
-                <h3>Agent Workflow Logs</h3>
+                <div>
+                    <h3 style="margin:0 0 4px 0;">⚙️ Agent Workflow Logs</h3>
+                    <p class="modal-subtitle" style="margin:0;">Real-time agent execution monitoring</p>
+                </div>
                 <div class="agent-controls">
-                    <button id="agent-start" class="btn-xs btn-secondary">Start Agent</button>
-                    <button id="agent-stop" class="btn-xs btn-danger-outline">Stop</button>
-                    <button id="agent-clear" class="btn-xs btn-secondary">Clear</button>
+                    <button id="agent-start" class="btn-xs btn-secondary">▶ Start</button>
+                    <button id="agent-stop" class="btn-xs btn-danger-outline">⏹ Stop</button>
+                    <button id="agent-clear" class="btn-xs btn-secondary">🗑️ Clear</button>
                 </div>
             </div>
             <div class="agent-toolbar">
@@ -53,11 +60,66 @@
             <div id="agent-log-container" class="terminal-view"><div class="log-entry system">Waiting for agent activity...</div></div>
         </div>
 
+        <div class="modal-card large-modal hidden" id="pdf-viewer-modal">
+            <button class="modal-close" data-close="pdf-viewer">×</button>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border-color);">
+                <h3 style="margin:0;">📄 Document Viewer</h3>
+                <div id="pdf-controls" style="display:flex;gap:8px;align-items:center;">
+                    <button id="pdf-prev-btn" class="btn-secondary btn-xs">← Prev</button>
+                    <span id="pdf-page-info" style="min-width:60px;text-align:center;font-size:0.9rem;">Page 1</span>
+                    <button id="pdf-next-btn" class="btn-secondary btn-xs">Next →</button>
+                </div>
+            </div>
+            <canvas id="pdf-canvas" style="width:100%;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-input);"></canvas>
+        </div>
+
+        <div class="modal-card large-modal hidden" id="docgen-modal">
+            <button class="modal-close" data-close="docgen">×</button>
+            <h3 style="margin-bottom:4px;">Legal Document Generator</h3>
+            <p class="modal-subtitle">Create professional legal documents</p>
+            <div class="input-group">
+                <label>📋 Document Type</label>
+                <select id="docgen-type" class="select-input">
+                    <option value="contract">Contract</option>
+                    <option value="agreement">Agreement</option>
+                    <option value="memo">Memorandum</option>
+                    <option value="brief">Legal Brief</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>📄 Format</label>
+                <select id="docgen-format" class="select-input">
+                    <option value="pdf">PDF</option>
+                    <option value="docx">Word (.docx)</option>
+                    <option value="pptx">Presentation (.pptx)</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>✍️ Parameters</label>
+                <textarea id="docgen-params" placeholder="Party names, dates, terms, contract details..."></textarea>
+            </div>
+            <button id="docgen-generate" class="btn-primary full-width">Generate Document</button>
+            <div id="docgen-result" style="margin-top:16px;"></div>
+        </div>
+
         <div class="modal-card hidden" id="profile-card">
             <button class="modal-close" data-close="profile">×</button>
-            <h3>Account Settings</h3>
-            <div class="input-group"><label>Display Name</label><input type="text" id="profile-display" /></div>
-            <button id="profile-save" class="btn-primary">Save Changes</button>
+            <h3 style="margin-bottom:4px;">Account Settings</h3>
+            <p class="modal-subtitle">Customize your profile</p>
+            <div class="profile-avatar-section">
+                <img id="profile-avatar-preview" src="" alt="Avatar" style="width:80px;height:80px;border-radius:50%;object-fit:cover;"/>
+                <button id="profile-upload-avatar" class="btn-secondary" style="margin-top:12px;">Upload Avatar</button>
+                <input type="file" id="profile-avatar-file" accept="image/*" hidden />
+            </div>
+            <div class="input-group">
+                <label>Display Name</label>
+                <input type="text" id="profile-display" placeholder="Your full name" />
+            </div>
+            <div class="input-group">
+                <label>Bio</label>
+                <textarea id="profile-bio" placeholder="Tell us about yourself or your practice..."></textarea>
+            </div>
+            <button id="profile-save" class="btn-primary full-width">Save Changes</button>
         </div>
     </div>
 
@@ -72,10 +134,12 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
                 </button>
             </div>
+            
             <button class="new-chat-btn">
                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
                 <span>New Consultation</span>
             </button>
+
             <div class="search-bar">
                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                 <input type="search" id="sidebar-search-input" placeholder="Search history..." />
@@ -114,6 +178,9 @@
                  <button class="footer-item" id="sidebar-agent-btn" title="Agent Logs">
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                 </button>
+                <button class="footer-item" id="sidebar-docgen-btn" title="Generate Docs">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="13" x2="8" y2="13"/><line x1="12" y1="17" x2="8" y2="17"/></svg>
+                </button>
             </div>
         </div>
     </aside>
@@ -129,16 +196,29 @@
         <div id="settings-page" class="settings-page hidden">
             <div class="settings-header">
                 <button id="settings-back" class="btn-ghost">← Back to Chat</button>
-                <h2>Configuration</h2>
+                <h2>⚙️ Configuration</h2>
             </div>
             <div class="settings-container">
                 <div class="setting-card">
-                    <h4>Appearance</h4>
-                    <label class="toggle-row"><span>Streaming Responses</span><input type="checkbox" id="settings-stream-default"></label>
+                    <h4>🎨 Appearance</h4>
+                    <p>Customize your reading experience</p>
+                    <label class="toggle-row">
+                        <span>Streaming Responses</span>
+                        <input type="checkbox" id="settings-stream-default">
+                    </label>
                 </div>
                 <div class="setting-card">
-                    <h4>Session Management</h4>
-                    <button id="settings-logout-all" class="btn-danger-outline">Log out of all devices</button>
+                    <h4>📥 Chat Export</h4>
+                    <p>Download your conversation history</p>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button id="export-json-btn" class="btn-secondary">📄 Export as JSON</button>
+                        <button id="export-pdf-btn" class="btn-secondary">📋 Export as PDF</button>
+                    </div>
+                </div>
+                <div class="setting-card">
+                    <h4>🔐 Session Management</h4>
+                    <p>Control your active sessions</p>
+                    <button id="settings-logout-all" class="btn-danger-outline full-width">🚪 Log out of all devices</button>
                 </div>
             </div>
         </div>
@@ -164,10 +244,11 @@
                     </button>
                 </div>
                 <div class="disclaimer">AI Lawyer can make mistakes. Please verify important information.</div>
-                <input type="file" id="file-upload-input" accept=".txt,.pdf,.doc,.docx" hidden />
+                <input type="file" id="file-upload-input" accept=".txt,.pdf,.doc,.docx" multiple hidden />
             </div>
         </div>
     </main>
+
     <script src="script.js"></script>
 </body>
 </html>
