@@ -53,15 +53,8 @@ def _generate_pdf(title: str, content: List[Dict[str, Any]]) -> str:
     Returns:
         Absolute path to generated PDF
     """
-    import json
-    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
-        f.write(f"\n[_generate_pdf] Called with title={title}, content_blocks={len(content)}\n")
-    
     filename = generate_unique_filename("pdf")
     filepath = get_full_document_path(filename)
-    
-    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
-        f.write(f"[_generate_pdf] Creating PDF at: {filepath}\n")
     
     # Create PDF
     doc = SimpleDocTemplate(
@@ -111,12 +104,7 @@ def _generate_pdf(title: str, content: List[Dict[str, Any]]) -> str:
     story.append(Spacer(1, 0.2 * inch))
     
     # Process content blocks
-    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
-        f.write(f"[_generate_pdf] Processing {len(content)} content blocks\n")
-    
-    for i, block in enumerate(content):
-        with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
-            f.write(f"[_generate_pdf] Block {i}: {list(block.keys())}\n")
+    for block in content:
         if "h1" in block:
             story.append(Paragraph(block["h1"], custom_heading1))
             story.append(Spacer(1, 0.1 * inch))
@@ -133,6 +121,13 @@ def _generate_pdf(title: str, content: List[Dict[str, Any]]) -> str:
             bullets = block["bullet"]
             for bullet_text in bullets:
                 story.append(Paragraph(f"• {bullet_text}", custom_body))
+            story.append(Spacer(1, 0.1 * inch))
+        
+        elif "ul" in block:
+            # Handle unordered list (ul) same as bullet
+            items = block["ul"]
+            for item_text in items:
+                story.append(Paragraph(f"• {item_text}", custom_body))
             story.append(Spacer(1, 0.1 * inch))
         
         elif "table" in block:
@@ -173,16 +168,7 @@ def _generate_pdf(title: str, content: List[Dict[str, Any]]) -> str:
                     pass
     
     # Build PDF
-    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
-        f.write(f"[_generate_pdf] Story has {len(story)} elements, building PDF...\n")
-    
     doc.build(story)
-    
-    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
-        import os
-        file_size = os.path.getsize(filepath) if os.path.exists(filepath) else 0
-        f.write(f"[_generate_pdf] PDF built successfully, file size: {file_size} bytes\n")
-    
     return filepath
 
 
@@ -239,6 +225,13 @@ def _generate_docx(title: str, content: List[Dict[str, Any]]) -> str:
             bullets = block["bullet"]
             for bullet_text in bullets:
                 para = doc.add_paragraph(bullet_text, style='List Bullet')
+                para.paragraph_format.space_after = Pt(4)
+        
+        elif "ul" in block:
+            # Handle unordered list (ul) same as bullet
+            items = block["ul"]
+            for item_text in items:
+                para = doc.add_paragraph(item_text, style='List Bullet')
                 para.paragraph_format.space_after = Pt(4)
         
         elif "table" in block:
@@ -353,6 +346,14 @@ def _generate_xlsx(title: str, content: List[Dict[str, Any]]) -> str:
                 current_row += 1
             current_row += 1
         
+        elif "ul" in block:
+            # Handle unordered list (ul) same as bullet
+            items = block["ul"]
+            for item_text in items:
+                ws[f'A{current_row}'].value = f"• {item_text}"
+                current_row += 1
+            current_row += 1
+        
         elif "table" in block:
             table_data = block["table"]
             if table_data:
@@ -464,6 +465,12 @@ def _generate_pptx(title: str, content: List[Dict[str, Any]]) -> str:
             for bullet_text in bullets:
                 content_text += f"• {bullet_text}\n"
         
+        elif "ul" in block:
+            # Handle unordered list (ul) same as bullet
+            items = block["ul"]
+            for item_text in items:
+                content_text += f"• {item_text}\n"
+        
         elif "table" in block:
             table_data = block["table"]
             if table_data:
@@ -541,10 +548,6 @@ def generate_document(doc_payload: Dict[str, Any]) -> str:
     Raises:
         ValueError: If document type is not supported or payload is invalid.
     """
-    import json
-    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
-        f.write(f"\n[generate_document] received payload: {json.dumps(doc_payload, indent=2)}\n")
-    
     # Validate payload
     if not isinstance(doc_payload, dict):
         raise ValueError("Payload must be a dictionary")
@@ -552,9 +555,6 @@ def generate_document(doc_payload: Dict[str, Any]) -> str:
     doc_type = doc_payload.get("type", "").lower()
     title = doc_payload.get("title", "Untitled Document")
     content = doc_payload.get("content", [])
-    
-    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
-        f.write(f"[generate_document] type={doc_type}, title={title}, content_blocks={len(content)}\n")
     
     if not isinstance(content, list):
         raise ValueError("Content must be a list of content blocks")

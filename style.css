@@ -199,9 +199,15 @@ body {
     cursor: pointer;
     transition: background 0.2s;
     font-size: 0.9rem;
+    position: relative;
+    min-height: 40px;
+}
+.chats-list-item > span {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
 }
 .chats-list-item:hover { background: var(--bg-input); color: var(--text-primary); }
 .chats-list-item.active { background: var(--bg-input); color: var(--text-primary); font-weight: 500; }
@@ -219,6 +225,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
+    margin-left: auto;
 }
 .chats-list-item:hover .chat-delete-btn {
     opacity: 1;
@@ -545,8 +553,23 @@ body.chat-active .prompt-container.center-mode {
 }
 .agent-toolbar { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
 .select-input, .text-input { background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); padding: 6px 10px; border-radius: 4px; }
-.log-entry { margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 2px; }
-.log-entry.system { color: var(--text-muted); font-style: italic; }
+.log-entry {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.02));
+    border: 1px solid rgba(255,255,255,0.04);
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    font-size: 0.92rem;
+}
+.log-entry.system { color: var(--text-muted); font-style: italic; background: transparent; border: none; box-shadow: none; padding: 4px 0; }
+
+.log-entry .log-ts { color: var(--text-muted); font-size: 0.8rem; min-width: 68px; }
+.log-entry .log-msg { color: var(--text-primary); flex: 1; word-break: break-word; }
+
 
 /* Auth Styling */
 .btn-primary { width: 100%; padding: 12px; background: var(--accent-primary); color: white; border: none; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; }
@@ -747,18 +770,20 @@ input[type="checkbox"]:checked::before {
 .chip:hover { background: var(--bg-input); border-color: var(--accent-primary); }
 
 /* Agent action card visuals */
-.action-card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.03)); border: 1px solid var(--border-color); padding: 10px; margin: 8px 0; border-radius: 8px; }
-.action-title { font-weight: 700; color: var(--accent-primary); margin-bottom: 6px; }
+.action-card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.03)); border: 1px solid var(--border-color); padding: 12px; margin: 10px 0; border-radius: 10px; box-shadow: 0 8px 20px rgba(0,0,0,0.18); }
+.action-title { font-weight: 700; color: var(--accent-primary); margin-bottom: 6px; font-size: 0.98rem; }
 .action-meta { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 8px; }
-.action-logs { background: var(--bg-input); padding: 8px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--text-primary); }
+.action-logs { background: var(--bg-input); padding: 10px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--text-primary); max-height: 220px; overflow: auto; }
+
 
 .need-input-panel { border: 1px dashed var(--border-color); padding: 12px; margin: 12px 0; border-radius: 8px; background: var(--bg-card); }
 .need-input-form .input-group { margin-bottom: 8px; }
 
 /* Reasoning card styling */
-.reasoning-card { background: var(--bg-card); border: 1px solid var(--border-color); border-left: 4px solid var(--accent-primary); padding: 12px; margin: 8px 0; border-radius: 6px; }
-.reasoning-header { padding: 4px 0; user-select: none; }
-.reasoning-content { margin-top: 10px; padding: 8px; background: rgba(0,0,0,0.1); border-radius: 4px; font-size: 0.9rem; }
+.reasoning-card { background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.02)); border: 1px solid var(--border-color); border-left: 4px solid var(--accent-primary); padding: 12px; margin: 10px 0; border-radius: 8px; box-shadow: 0 6px 14px rgba(0,0,0,0.12); }
+.reasoning-header { padding: 4px 0; user-select: none; display:flex; justify-content:space-between; align-items:center; }
+.reasoning-header strong { color: var(--accent-primary); }
+.reasoning-content { margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.06); border-radius: 6px; font-size: 0.95rem; color: var(--text-primary); }
 
 
 /* --- Auth Forms --- */

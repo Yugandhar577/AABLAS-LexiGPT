@@ -39,29 +39,78 @@ def create_document():
     }
     """
     try:
-        data = request.get_json(force=True) or {}
-        
-        # Call document generation service
-        file_path = generate_document(data)
-        filename = os.path.basename(file_path)
-        
-        return jsonify({
-            "status": "success",
-            "file_path": file_path,
-            "filename": filename
-        }), 200
-    
+      data = request.get_json(force=True) or {}
+
+      # Normalize frontend payloads into canonical shape expected by generate_document()
+      # Canonical shape: { "type": "pdf|docx|xlsx|pptx", "title": "...", "content": [ ... ] }
+      doc_payload = {}
+
+      # If frontend already sent canonical payload, use it directly
+      if isinstance(data.get("type"), str) and isinstance(data.get("content"), list):
+        doc_payload = data
+      else:
+        # Support frontend modal/need_input payloads which may send { doc_type, format, params }
+        fmt = (data.get("type") or data.get("format") or data.get("doc_type") or "pdf").lower()
+        # Normalize to 'pdf','docx','xlsx','pptx'
+        if fmt in ("doc", "document"):
+          fmt = "docx"
+
+        params = data.get("params") or data.get("payload") or {}
+
+        # Build a sensible title
+        title = (data.get("title") or
+             (params.get("title") if isinstance(params, dict) else None) or
+             (data.get("doc_type") and str(data.get("doc_type")).title()) or
+             "Generated Document")
+
+        content = []
+
+        # If params is a simple string, treat it as a single paragraph
+        if isinstance(params, str) and params.strip():
+          content.append({"p": params.strip()})
+
+        # If params is a dict with 'fields' (from need_input form), render each field as heading+paragraph
+        elif isinstance(params, dict):
+          # If it's already in canonical 'content' form, use it
+          if isinstance(params.get("content"), list):
+            content = params.get("content")
+          # If fields provided, create sections
+          elif isinstance(params.get("fields"), dict):
+            fields = params.get("fields")
+            for k, v in fields.items():
+              # use field name as small heading and value as paragraph
+              content.append({"h2": str(k)})
+              content.append({"p": str(v)})
+          else:
+            # Fallback: flatten key/value pairs into paragraphs
+            for k, v in params.items():
+              # Skip empty values
+              if v is None or (isinstance(v, str) and v.strip() == ""):
+                continue
+              content.append({"h2": str(k)})
+              content.append({"p": str(v)})
+
+        # Ensure there's at least a placeholder paragraph if nothing provided
+        if not content:
+          content = [{"p": ""}]
+
+        doc_payload = {"type": fmt, "title": title, "content": content}
+
+      # Call document generation service
+      file_path = generate_document(doc_payload)
+      filename = os.path.basename(file_path)
+
+      return jsonify({
+        "status": "success",
+        "file_path": file_path,
+        "filename": filename
+      }), 200
+
     except ValueError as exc:
-        return jsonify({
-            "status": "error",
-            "message": str(exc)
-        }), 400
-    
+      return jsonify({"status": "error", "message": str(exc)}), 400
+
     except Exception as exc:
-        return jsonify({
-            "status": "error",
-            "message": f"Document generation failed: {str(exc)}"
-        }), 500
+      return jsonify({"status": "error", "message": f"Document generation failed: {str(exc)}"}), 500
 
 
 @bp.route("/download/<filename>", methods=["GET"])

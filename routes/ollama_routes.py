@@ -34,10 +34,6 @@ def chat():
         try:
             from services.agent_services import plan_and_run
             
-            # Write to log to confirm we're here
-            with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
-                f.write(f"\n[ollama_routes] Document detected in message: {user_message}\n")
-            
             # Store user message in chat history immediately
             session_id = chat_history.ensure_session(session_id, user_message[:60])
             chat_history.append_message(session_id, "user", user_message)
@@ -58,21 +54,13 @@ def chat():
             def run_agent_async():
                 try:
                     import traceback
-                    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
-                        f.write(f"\n[run_agent_async] Starting agent with goal: {goal[:100]}...\n")
                     plan_and_run(goal)  # This emits SSE events as it runs
-                    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
-                        f.write(f"\n[run_agent_async] Agent completed!\n")
                 except Exception as e:
-                    import traceback
-                    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
-                        f.write(f"\n[run_agent_async] ERROR: {e}\n{traceback.format_exc()}\n")
+                    print(f"Background agent error: {e}")
+                    traceback.print_exc()
             
             thread = threading.Thread(target=run_agent_async, daemon=True)
             thread.start()
-            
-            with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
-                f.write(f"[ollama_routes] Thread started, returning HTTP response\n")
             
             # Return immediately with streaming flag
             return jsonify({
@@ -83,8 +71,6 @@ def chat():
         except Exception as e:
             # Fall back to regular chat if agent fails
             import traceback
-            with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
-                f.write(f"\n[ollama_routes] EXCEPTION: {e}\n{traceback.format_exc()}\n")
             print(f"Agent pipeline routing error: {e}")
             traceback.print_exc()
             pass

@@ -653,6 +653,44 @@ function renderPlanInChat(planObj) {
         card.appendChild(chips);
     }
 
+    // Add a 'Provide details' action so user can supply missing fields directly
+    const provideWrapper = document.createElement('div');
+    provideWrapper.style.marginTop = '10px';
+    const provideBtn = document.createElement('button');
+    provideBtn.className = 'btn-secondary';
+    provideBtn.style.display = 'inline-block';
+    provideBtn.style.marginTop = '6px';
+    provideBtn.textContent = 'Provide document details';
+    provideBtn.addEventListener('click', (e) => {
+        // Open the docgen modal and either show a structured form or prefill the params textarea
+        showModal('docgen');
+        try {
+            const paramsEl = document.getElementById('docgen-params');
+            if (!paramsEl) return;
+
+            // Heuristic: detect explicit fields, or extract likely fields from plan rationale/next_steps
+            const detected = detectFieldsFromPlan(planObj);
+            if (detected && detected.length > 0) {
+                // Build structured form in the docgen modal
+                buildDocgenStructuredForm(detected, planObj.rationale || '');
+            } else {
+                // Fallback: prefill textarea with helpful hints
+                let hint = '';
+                if (planObj.next_steps && planObj.next_steps.length) {
+                    hint = 'Suggested inputs based on planned steps:\n' + planObj.next_steps.map((s,i) => `${i+1}. ${s}`).join('\n');
+                } else if (planObj.rationale) {
+                    hint = 'Context / rationale:\n' + planObj.rationale;
+                }
+                const template = `Title: \n\n${hint}\n\n(Replace the above with the document title and any fields or content you want included)`;
+                paramsEl.value = template;
+            }
+        } catch (err) {
+            console.warn('Failed to prefill docgen params', err);
+        }
+    });
+    provideWrapper.appendChild(provideBtn);
+    card.appendChild(provideWrapper);
+
     // Insert as a bot-like system message at the bottom of chat
     const wrapper = document.createElement('div');
     wrapper.className = 'chat-message bot-message plan-message';
@@ -693,13 +731,18 @@ async function loadChats() {
             chatWrapper.style.alignItems = 'center';
             chatWrapper.style.width = '100%';
             chatWrapper.style.gap = '8px';
+            chatWrapper.style.minWidth = '0';
             
             const chatLink = document.createElement('div');
             chatLink.style.flex = '1';
             chatLink.style.cursor = 'pointer';
+            chatLink.style.display = 'flex';
+            chatLink.style.alignItems = 'center';
+            chatLink.style.gap = '8px';
+            chatLink.style.minWidth = '0';
             chatLink.innerHTML = `
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                <span>${chat.title || 'New Consultation'}</span>
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink: 0;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;">${chat.title || 'New Consultation'}</span>
             `;
             chatLink.onclick = () => loadSession(chat.session_id);
             
@@ -707,6 +750,8 @@ async function loadChats() {
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'chat-delete-btn';
             deleteBtn.title = 'Delete chat';
+            deleteBtn.style.flexShrink = '0';
+            deleteBtn.style.marginLeft = 'auto';
             deleteBtn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
             deleteBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
@@ -793,74 +838,63 @@ function connectAgentStream() {
     state.agentEventSource.onmessage = (e) => {
         try {
             const data = JSON.parse(e.data);
+            const ts = new Date().toLocaleTimeString();
             const entry = document.createElement('div');
             entry.className = 'log-entry';
-            const ts = new Date().toLocaleTimeString();
 
-            // Handle structured event types
-            if (data.type === 'file_download') {
-                const url = data.url.startsWith('/') ? API_BASE + data.url : data.url;
-                entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <span style="color:#059669">File</span>: <a href="${url}" download="${data.filename}">${data.filename}</a>`;
-            } else if (data.type === 'next_steps') {
-                // Render chips for next steps
-                const steps = data.next_steps || [];
-                const chips = steps.map(s => `<button class="chip">${s}</button>`).join(' ');
-                entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <strong>Next Steps:</strong> ${chips}`;
-            } else if (data.type === 'step_started') {
-                entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <span style="color:#2563eb">Step started</span>: ${data.title} (${data.tool})`;
-                // Also render an action card for this step
-                renderActionCard({type:'step_started', step_id:data.step_id, title:data.title, tool:data.tool, input:data.input});
-            } else if (data.type === 'step_result') {
-                const ok = data.ok ? '<span style="color:green">OK</span>' : '<span style="color:red">FAIL</span>';
-                entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <span style="color:#6b7280">Result</span>: ${data.title} ${ok} - ${data.logs || ''}`;
-                renderActionCard({type:'step_result', step_id:data.step_id, title:data.title, ok:data.ok, logs:data.logs, output_preview:data.output_preview});
-            } else if (data.type === 'planner_output') {
-                // Planner output may include raw JSON; attempt to parse and render a plan card in chat
+            // Build a compact, human-friendly message for the log line
+            entry.innerHTML = formatAgentLogEntry(data, ts);
+
+            // For richer displays, call existing renderers which append their own cards
+            if (data.type === 'planner_output') {
+                // try to parse planner JSON and render plan in chat and action card
                 let parsed = null;
                 try {
-                    if (typeof data.raw === 'string') {
-                        parsed = JSON.parse(data.raw);
-                    } else {
-                        parsed = data.raw;
-                    }
-                } catch (e) {
-                    // try to extract a JSON block
+                    if (typeof data.raw === 'string') parsed = JSON.parse(data.raw);
+                    else parsed = data.raw;
+                } catch (err) {
                     try {
                         const txt = data.raw || '';
                         const start = txt.indexOf('{');
                         const end = txt.lastIndexOf('}');
-                        if (start !== -1 && end !== -1 && end > start) {
-                            parsed = JSON.parse(txt.slice(start, end + 1));
-                        }
-                    } catch (e2) {
-                        parsed = null;
-                    }
+                        if (start !== -1 && end !== -1 && end > start) parsed = JSON.parse(txt.slice(start, end + 1));
+                    } catch (e2) { parsed = null; }
                 }
-
                 if (parsed) {
-                    try { renderPlanInChat(parsed); } catch (e) { /* ignore render errors */ }
-                    entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <strong>Planner output</strong>: rendered plan in chat`;
-                    renderActionCard({type:'planner', plan: parsed});
-                } else {
-                    const txt = typeof data.raw === 'string' ? data.raw : JSON.stringify(data.raw || data);
-                    entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <pre style="white-space:pre-wrap; margin:0;">${escapeHtml(txt)}</pre>`;
+                    try { renderPlanInChat(parsed); } catch (e) {}
+                    try { renderActionCard({type:'planner', plan: parsed}); } catch (e) {}
                 }
-                // also add to reasoning panel if visible
                 if (document.getElementById('agent-show-reasoning') && document.getElementById('agent-show-reasoning').checked) addReasoningEntryToPanel(data);
+            }
 
-            } else if (data.type === 'reason' || data.type === 'run_complete' || data.type === 'evaluation') {
-                // Render reasoning/evaluation as a collapsible card in the Agent logs
-                renderReasoningCard(data);
-                entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <span style="color:var(--accent-primary);font-weight:600">${data.type.toUpperCase()}</span>`;
-                renderActionCard({type: data.type, data: data});
+            // If a file was generated, also surface it directly in the chat for easy download
+            if (data.type === 'file_download') {
+                try {
+                    const url = (data.url || '').startsWith('/') ? API_BASE + data.url : (data.url || '');
+                    const filename = data.filename || data.file || 'document.pdf';
+                    const safeName = escapeHtml(filename);
+                    const downloadHtml = `<div style="padding:12px;background:var(--bg-card);border-radius:8px;display:inline-block;"><a href="${url}" download="${safeName}" class="btn-primary" style="text-decoration:none;">Download ${safeName}</a></div>`;
+
+                    // Append a bot-like chat message containing the download link
+                    const msgId = appendMessage('', 'bot');
+                    const msgDiv = document.getElementById(msgId);
+                    if (msgDiv) {
+                        const bubble = msgDiv.querySelector('.message-bubble');
+                        if (bubble) bubble.innerHTML = downloadHtml;
+                    }
+
+                    showToast('Document generated — ready to download', 'success');
+                } catch (e) { /* ignore download surface errors */ }
+            }
+
+            if (data.type === 'step_started') {
+                try { renderActionCard({type:'step_started', step_id:data.step_id, title:data.title, tool:data.tool, input:data.input}); } catch (e) {}
+            } else if (data.type === 'step_result') {
+                try { renderActionCard({type:'step_result', step_id:data.step_id, title:data.title, ok:data.ok, logs:data.logs, output_preview:data.output_preview}); } catch (e) {}
+            } else if (data.type === 'reason' || data.type === 'evaluation' || data.type === 'run_complete') {
+                try { renderReasoningCard(data); } catch (e) {}
             } else if (data.type === 'need_input') {
-                // Render a friendly input form for required fields
-                renderNeedInputForm(data);
-                entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <strong>Awaiting input for step</strong>: ${data.title}`;
-            } else if (data.type === 'agent_stopped') {
-                entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <span style="color:#ef4444">Agent stopped</span>`;
-            } else {
-                entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> ${JSON.stringify(data)}`;
+                try { renderNeedInputForm(data); } catch (e) {}
             }
 
             container.appendChild(entry);
@@ -869,8 +903,64 @@ function connectAgentStream() {
             if (!document.getElementById('agent-pause-autoscroll').checked) {
                 container.scrollTop = container.scrollHeight;
             }
-        } catch (err) { /* console.error('Log parse error', err); */ }
+        } catch (err) {
+            // ignore parse/display errors
+        }
     };
+}
+
+
+// Format agent event into a concise, user-friendly HTML snippet
+function formatAgentLogEntry(data, ts) {
+    try {
+        const t = data.type || 'event';
+        if (t === 'file_download') {
+            const url = (data.url || '').startsWith('/') ? API_BASE + data.url : (data.url || '#');
+            const fn = escapeHtml(data.filename || data.file || 'file');
+            return `<span style="color:#6b7280">[${ts}]</span> <span style="color:#059669">File</span>: <a href="${url}" download="${fn}">${fn}</a>`;
+        }
+
+        if (t === 'next_steps') {
+            const steps = data.next_steps || [];
+            const chips = steps.map(s => `<button class="chip">${escapeHtml(s)}</button>`).join(' ');
+            return `<span style="color:#6b7280">[${ts}]</span> <strong>Next Steps:</strong> ${chips}`;
+        }
+
+        if (t === 'step_started') {
+            return `<span style="color:#6b7280">[${ts}]</span> <span style="color:#2563eb">Step started</span>: ${escapeHtml(data.title || data.name || '')} ${data.tool ? '(' + escapeHtml(data.tool) + ')' : ''}`;
+        }
+
+        if (t === 'step_result') {
+            const ok = data.ok ? '<span style="color:green">OK</span>' : '<span style="color:red">FAIL</span>';
+            const logs = data.logs ? ' — ' + escapeHtml(String(data.logs).slice(0, 300)) : '';
+            return `<span style="color:#6b7280">[${ts}]</span> <strong>Result</strong>: ${escapeHtml(data.title || '')} ${ok}${logs}`;
+        }
+
+        if (t === 'planner_output') {
+            // brief summary — plan rendering handled elsewhere
+            return `<span style="color:#6b7280">[${ts}]</span> <strong>Planner output</strong>: processed`;
+        }
+
+        if (t === 'reason' || t === 'evaluation' || t === 'run_complete') {
+            const label = t === 'evaluation' ? 'Evaluation' : (t === 'reason' ? 'Reasoning' : 'Run complete');
+            const summary = escapeHtml((data.summary || data.result || '').toString().slice(0, 300));
+            return `<span style="color:#6b7280">[${ts}]</span> <strong>${label}</strong>: ${summary}`;
+        }
+
+        if (t === 'need_input') {
+            return `<span style="color:#6b7280">[${ts}]</span> <strong>Input required</strong>: ${escapeHtml(data.title || '')}`;
+        }
+
+        if (t === 'agent_stopped') {
+            return `<span style="color:#6b7280">[${ts}]</span> <span style="color:#ef4444">Agent stopped</span>`;
+        }
+
+        // Fallback: small pretty print
+        const txt = typeof data === 'string' ? data : JSON.stringify(data, null, 0);
+        return `<span style="color:#6b7280">[${ts}]</span> ${escapeHtml(txt)}`;
+    } catch (e) {
+        return `<span style="color:#6b7280">[${ts}]</span> ${escapeHtml(String(data))}`;
+    }
 }
 
 async function startAgent() {
@@ -1062,15 +1152,149 @@ function openMessageSearch() {
     showToast(`Found ${found} message(s)`, found > 0 ? 'success' : 'info');
 }
 
+// Heuristic to detect probable field names from a planner object
+function detectFieldsFromPlan(planObj) {
+    if (!planObj) return [];
+    if (planObj.fields && typeof planObj.fields === 'object') {
+        return Object.keys(planObj.fields);
+    }
+
+    const textParts = [];
+    if (planObj.rationale) textParts.push(planObj.rationale);
+    if (planObj.next_steps && Array.isArray(planObj.next_steps)) textParts.push(planObj.next_steps.join(' '));
+    if (planObj.steps && Array.isArray(planObj.steps)) textParts.push(planObj.steps.map(s => s.title || s).join(' '));
+    const txt = textParts.join(' ').toLowerCase();
+    if (!txt) return [];
+
+    const keywords = ['title','tenant','landlord','party','name','date','start date','end date','address','amount','rent','term','duration','security deposit','phone','email','lease','period','company','client'];
+    const found = new Set();
+    for (const k of keywords) {
+        if (txt.includes(k)) {
+            // normalize field label
+            const label = k.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+            found.add(label);
+        }
+    }
+
+    // extract simple 'Field name:' patterns
+    try {
+        const colonMatches = txt.match(/([a-z ]{3,30}):/g);
+        if (colonMatches) {
+            colonMatches.forEach(m => {
+                const name = m.replace(':','').trim();
+                const label = name.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+                if (label.length > 1) found.add(label);
+            });
+        }
+    } catch (e) {}
+
+    return Array.from(found).slice(0, 10);
+}
+
+// Build a structured form inside the docgen modal for direct user input
+function buildDocgenStructuredForm(fields, rationale) {
+    const modal = document.getElementById('docgen-modal');
+    if (!modal) return;
+    const paramsEl = document.getElementById('docgen-params');
+    // Hide textarea
+    if (paramsEl) paramsEl.style.display = 'none';
+
+    // Remove existing structured container if present
+    let container = document.getElementById('docgen-structured-container');
+    if (container) container.remove();
+
+    container = document.createElement('div');
+    container.id = 'docgen-structured-container';
+    container.style.marginTop = '8px';
+
+    const form = document.createElement('form');
+    form.id = 'docgen-structured-form';
+
+    // Intro note
+    const note = document.createElement('div');
+    note.style.fontSize = '0.9rem';
+    note.style.color = 'var(--text-secondary)';
+    note.style.marginBottom = '8px';
+    note.textContent = 'Fill the fields below to generate the document. You can switch to freeform text if preferred.';
+    form.appendChild(note);
+
+    fields.forEach(f => {
+        const group = document.createElement('div');
+        group.className = 'input-group';
+        const label = document.createElement('label'); label.textContent = f;
+        const inp = document.createElement('input'); inp.type = 'text'; inp.setAttribute('data-field-name', f); inp.className = 'text-input'; inp.placeholder = f;
+        group.appendChild(label); group.appendChild(inp);
+        form.appendChild(group);
+    });
+
+    // Additional content textarea
+    const addGroup = document.createElement('div'); addGroup.className = 'input-group';
+    const addLabel = document.createElement('label'); addLabel.textContent = 'Additional details / body content';
+    const addText = document.createElement('textarea'); addText.id = 'docgen-additional-content'; addText.className = 'text-input'; addText.placeholder = 'Optional: any extra paragraphs, clauses, or notes.';
+    if (rationale) addText.value = rationale;
+    addGroup.appendChild(addLabel); addGroup.appendChild(addText);
+    form.appendChild(addGroup);
+
+    // Toggle back to freeform textarea
+    const toggleWrapper = document.createElement('div'); toggleWrapper.style.marginTop = '6px';
+    const useFreeBtn = document.createElement('button'); useFreeBtn.type = 'button'; useFreeBtn.className = 'btn-secondary'; useFreeBtn.textContent = 'Use freeform textarea';
+    useFreeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        // Remove structured form and show textarea, populating it with a merged template
+        const container = document.getElementById('docgen-structured-container');
+        if (container) container.remove();
+        const paramsEl = document.getElementById('docgen-params');
+        if (paramsEl) {
+            paramsEl.style.display = 'block';
+            // build a simple template from inputs
+            const formEl = document.getElementById('docgen-structured-form');
+            let tmpl = '';
+            if (formEl) {
+                formEl.querySelectorAll('input[data-field-name]').forEach(i => {
+                    const name = i.getAttribute('data-field-name');
+                    const val = i.value || '';
+                    tmpl += `${name}: ${val}\n`;
+                });
+                const add = document.getElementById('docgen-additional-content');
+                if (add && add.value) tmpl += '\n' + add.value;
+            }
+            paramsEl.value = tmpl;
+        }
+    });
+    toggleWrapper.appendChild(useFreeBtn);
+    form.appendChild(toggleWrapper);
+
+    container.appendChild(form);
+
+    // Insert container after paramsEl parent
+    if (paramsEl && paramsEl.parentNode) {
+        paramsEl.parentNode.insertBefore(container, paramsEl.nextSibling);
+    }
+}
+
 async function handleDocgenGenerate() {
     try {
         const docType = document.getElementById('docgen-type').value;
         const format = document.getElementById('docgen-format').value;
-        const params = document.getElementById('docgen-params').value;
-        
-        if (!params) {
-            showToast('Please enter document parameters', 'error');
-            return;
+        // Support structured form if present
+        const structForm = document.getElementById('docgen-structured-form');
+        let paramsPayload = null;
+        if (structForm) {
+            const fields = {};
+            structForm.querySelectorAll('input[data-field-name]').forEach(i => {
+                const k = i.getAttribute('data-field-name');
+                fields[k] = i.value || '';
+            });
+            const additional = (document.getElementById('docgen-additional-content') || {}).value || '';
+            paramsPayload = { fields };
+            if (additional && additional.trim()) paramsPayload.additional = additional.trim();
+        } else {
+            const paramsText = document.getElementById('docgen-params').value;
+            if (!paramsText || paramsText.trim() === '') {
+                showToast('Please enter document parameters', 'error');
+                return;
+            }
+            paramsPayload = paramsText;
         }
         
         showToast('Generating document...', 'info');
@@ -1081,7 +1305,7 @@ async function handleDocgenGenerate() {
                 'Content-Type': 'application/json',
                 'Authorization': state.authToken ? `Bearer ${state.authToken}` : ''
             },
-            body: JSON.stringify({ doc_type: docType, format: format, params: params })
+            body: JSON.stringify({ doc_type: docType, format: format, params: paramsPayload })
         });
         
         if (!res.ok) throw new Error('Document generation failed');

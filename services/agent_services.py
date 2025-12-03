@@ -92,9 +92,6 @@ def _tool_rag_search(args: Dict[str, Any]) -> Dict[str, Any]:
 
 def _tool_doc_generate(args: Dict[str, Any]) -> Dict[str, Any]:
     try:
-        with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
-            f.write(f"\n[DEBUG] _tool_doc_generate received args: {json.dumps(args, indent=2)}\n")
-        
         # args is either: (1) a dict with "payload"/"doc_payload" key, or (2) the payload itself with type/content
         payload = args.get("payload") or args.get("doc_payload")
         if not payload and isinstance(args, dict) and ("type" in args or "content" in args):
@@ -102,9 +99,6 @@ def _tool_doc_generate(args: Dict[str, Any]) -> Dict[str, Any]:
             payload = args
         if not payload:
             payload = {}
-        
-        with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
-            f.write(f"[DEBUG] Extracted payload: {json.dumps(payload, indent=2)}\n")
         
         # Backwards-compatible: if a template string was provided, attempt to map
         if isinstance(payload, str):
@@ -327,10 +321,6 @@ def execute_plan(plan: Plan) -> RunResult:
 
     # Reset stop flag for this run
     AGENT_STOP_EVENT.clear()
-    
-    # DEBUG: Print full plan for inspection
-    with open(r"c:\Users\Yugandhar Paulbudhe\Desktop\AABLAS - Copy\debug_docgen.log", "a") as f:
-        f.write(f"\n[execute_plan] Full plan JSON:\n{json.dumps(plan.dict(), indent=2)}\n")
 
     for step in plan.steps[: plan.max_iterations]:
         # Check for external stop signal
