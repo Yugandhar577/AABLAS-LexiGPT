@@ -6,7 +6,8 @@ const state = {
     user: null,
     activeSession: null,
     streamMode: localStorage.getItem('STREAM_MODE') === 'true',
-    sidebarExpanded: localStorage.getItem('SIDEBAR_EXPANDED') !== 'false' // default true
+    sidebarExpanded: localStorage.getItem('SIDEBAR_EXPANDED') !== 'false',
+    agentEventSource: null
 };
 
 /* --- UI Elements --- */
@@ -18,12 +19,17 @@ const elements = {
     promptInput: document.getElementById('prompt-input'),
     initialState: document.getElementById('initial-content'),
     fileInput: document.getElementById('file-upload-input'),
+    // Modals
     modals: {
         overlay: document.getElementById('modal-overlay'),
         auth: document.getElementById('auth-modal-card'),
         profile: document.getElementById('profile-card'),
         agent: document.getElementById('agent-modal')
-    }
+    },
+    // Sidebar Buttons
+    authGroup: document.getElementById('sidebar-auth-group'),
+    userProfile: document.getElementById('user-profile-trigger'),
+    logoutBtn: document.getElementById('sidebar-logout-btn')
 };
 
 /* --- Core Initialization --- */
@@ -51,11 +57,22 @@ function setupEventListeners() {
     document.getElementById('sidebar-toggle-btn').addEventListener('click', toggleSidebar);
     document.querySelector('.new-chat-btn').addEventListener('click', startNewChat);
 
-    // Auth & Modals
-    document.getElementById('login-btn').addEventListener('click', () => showModal('auth', 'login'));
+    // Sidebar Auth Buttons
+    document.getElementById('sidebar-login-btn').addEventListener('click', () => showModal('auth', 'login'));
+    document.getElementById('sidebar-register-btn').addEventListener('click', () => showModal('auth', 'register'));
+    elements.logoutBtn.addEventListener('click', handleLogout);
+
+    // Auth Modals logic
+    document.getElementById('login-btn').addEventListener('click', () => showModal('auth', 'login')); // internal modal btn if needed
     document.querySelector('.user-profile').addEventListener('click', () => showModal('profile'));
     document.getElementById('show-register').addEventListener('click', () => toggleAuthMode('register'));
     document.getElementById('show-login').addEventListener('click', () => toggleAuthMode('login'));
+    
+    // Agent Logs
+    document.getElementById('sidebar-agent-btn').addEventListener('click', openAgentModal);
+    document.getElementById('agent-start').addEventListener('click', startAgent);
+    document.getElementById('agent-stop').addEventListener('click', stopAgent);
+    document.getElementById('agent-clear').addEventListener('click', () => { document.getElementById('agent-log-container').innerHTML = ''; });
     
     // Modal Closers
     document.querySelectorAll('.modal-close').forEach(btn => {
@@ -70,7 +87,7 @@ function setupEventListeners() {
     document.getElementById('register-submit').addEventListener('click', handleRegister);
     document.getElementById('settings-logout-all').addEventListener('click', handleLogout);
 
-    // Theme
+    // Theme (Top Right)
     document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
 
     // Settings Navigation
@@ -83,10 +100,9 @@ function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.innerHTML = `<span>${message}</span>`; // Safe for simple text
+    toast.innerHTML = `<span>${message}</span>`;
     container.appendChild(toast);
     
-    // Remove after 3 seconds
     setTimeout(() => {
         toast.style.opacity = '0';
         toast.style.transform = 'translateY(20px)';
@@ -108,7 +124,7 @@ function toggleTheme() {
     const isLight = document.body.getAttribute('data-theme') === 'light';
     const newTheme = isLight ? 'dark' : 'light';
     document.body.setAttribute('data-theme', newTheme);
-    document.getElementById('moon-icon').classList.toggle('hidden', !isLight); // if becoming dark, show moon? No, show sun in dark mode usually
+    document.getElementById('moon-icon').classList.toggle('hidden', !isLight);
     document.getElementById('sun-icon').classList.toggle('hidden', isLight);
     localStorage.setItem('theme', newTheme);
 }
@@ -130,7 +146,6 @@ function toggleSidebar() {
 }
 
 function initSidebar() {
-    // Check if mobile
     if (window.innerWidth < 768) state.sidebarExpanded = false;
     updateSidebarUI();
 }
@@ -152,15 +167,12 @@ async function submitMessage() {
     
     elements.promptInput.value = '';
     
-    // UI Update
-    if (!state.activeSession) {
-        elements.app.classList.add('chat-active');
-    }
+    // UI Update: This triggers the input to move from center to bottom
+    elements.app.classList.add('chat-active');
     
     appendMessage(text, 'user');
     
-    // Bot Placeholder
-    const botMsgId = appendMessage('...', 'bot', true); // returns ID
+    const botMsgId = appendMessage('...', 'bot', true); 
     const botContentEl = document.getElementById(botMsgId).querySelector('.message-bubble');
 
     try {
@@ -179,10 +191,38 @@ async function submitMessage() {
 
         state.activeSession = data.session_id;
         botContentEl.textContent = data.response;
+        botContentEl.classList.remove('typing-indicator');
         
-        // Add "Reasoning" button if data exists
+        // Render Reasoning / Sources
         if (data.explain || data.sources) {
-            addReasoningTrigger(botContentEl.parentElement, data);
+            const cotHTML = renderReasoning(data);
+            if (cotHTML) {
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = cotHTML;
+                // Add click handlers for tabs
+                const tabs = wrapper.querySelectorAll('.cot-tab');
+                tabs.forEach(t => t.addEventListener('click', (e) => {
+                    const mode = e.target.dataset.tab;
+                    const contentDiv = wrapper.querySelector('.cot-content');
+                    // Reset tabs
+                    tabs.forEach(x => x.classList.remove('active'));
+                    e.target.classList.add('active');
+                    
+                    if (mode === 'reasoning') {
+                        contentDiv.innerHTML = data.explain ? (data.explain.chain_of_thought || JSON.stringify(data.explain)) : 'No reasoning provided.';
+                    } else {
+                        // Sources
+                        if (data.sources && data.sources.length) {
+                             contentDiv.innerHTML = data.sources.map(s => 
+                                 `<div class="source-item"><div class="source-title">${s.title || 'Document'}</div><div class="source-snippet">${s.snippet || '...'}</div></div>`
+                             ).join('');
+                        } else {
+                            contentDiv.innerHTML = 'No sources cited.';
+                        }
+                    }
+                }));
+                botContentEl.parentElement.appendChild(wrapper);
+            }
         }
 
     } catch (err) {
@@ -190,7 +230,26 @@ async function submitMessage() {
         botContentEl.parentElement.style.color = 'var(--danger)';
     }
     
-    loadChats(); // Refresh sidebar list
+    loadChats();
+}
+
+// Render helper for Chain of Thought / Sources
+function renderReasoning(data) {
+    // Initial content is reasoning if available, else sources
+    const hasReasoning = !!data.explain;
+    const initialText = hasReasoning ? (data.explain.chain_of_thought || 'Processing...') : 'Select a tab';
+    
+    return `
+        <div class="cot-wrapper">
+            <div class="cot-header">
+                <div class="cot-tab active" data-tab="reasoning">Reasoning</div>
+                <div class="cot-tab" data-tab="sources">Sources (${data.sources ? data.sources.length : 0})</div>
+            </div>
+            <div class="cot-content">
+                ${initialText}
+            </div>
+        </div>
+    `;
 }
 
 function appendMessage(text, role, isLoading = false) {
@@ -202,7 +261,6 @@ function appendMessage(text, role, isLoading = false) {
     const avatar = document.createElement('div');
     avatar.className = 'message-avatar';
     
-    // Set Avatar Content
     if (role === 'user') {
         if (state.user && state.user.avatar_url) {
             avatar.innerHTML = `<img src="${state.user.avatar_url}" style="width:100%;height:100%;border-radius:6px;">`;
@@ -231,7 +289,7 @@ function startNewChat() {
     state.activeSession = null;
     elements.chatHistory.innerHTML = '';
     elements.app.classList.remove('chat-active');
-    // Deselect active sidebar items
+    // Deselect sidebar items
     document.querySelectorAll('.chats-list-item').forEach(el => el.classList.remove('active'));
 }
 
@@ -258,14 +316,54 @@ async function loadChats() {
 
 async function loadSession(id) {
     state.activeSession = id;
-    elements.app.classList.add('chat-active');
-    loadChats(); // Update active state in sidebar
+    elements.app.classList.add('chat-active'); // Force input to bottom
+    loadChats();
     
     const res = await fetch(`${API_BASE}/api/chats/${id}`);
     const data = await res.json();
     
     elements.chatHistory.innerHTML = '';
     data.messages.forEach(msg => appendMessage(msg.text, msg.role === 'user' ? 'user' : 'bot'));
+}
+
+/* --- Agent Logs Logic --- */
+function openAgentModal() {
+    showModal('agent');
+    connectAgentStream();
+}
+
+function connectAgentStream() {
+    if (state.agentEventSource) return; // already connected
+    const container = document.getElementById('agent-log-container');
+    
+    state.agentEventSource = new EventSource(`${API_BASE}/api/agent/stream`);
+    state.agentEventSource.onmessage = (e) => {
+        try {
+            const data = JSON.parse(e.data);
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const ts = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span style="color:#6b7280">[${ts}]</span> <span style="color:#6366f1">${data.action || 'INFO'}</span>: ${JSON.stringify(data)}`;
+            container.appendChild(entry);
+            
+            // Auto scroll
+            if (!document.getElementById('agent-pause-autoscroll').checked) {
+                container.scrollTop = container.scrollHeight;
+            }
+        } catch (err) { console.error('Log parse error', err); }
+    };
+}
+
+async function startAgent() {
+    await fetch(`${API_BASE}/api/agent/run`, { method: 'POST' });
+}
+
+async function stopAgent() {
+    await fetch(`${API_BASE}/api/agent/stop`, { method: 'POST' });
+    if (state.agentEventSource) {
+        state.agentEventSource.close();
+        state.agentEventSource = null;
+    }
 }
 
 /* --- Auth Logic --- */
@@ -287,19 +385,19 @@ async function initAuth() {
 }
 
 function updateAuthUI(isLoggedIn) {
-    const loginBtn = document.getElementById('login-btn');
-    const profileTrigger = document.querySelector('.user-profile');
-    
     if (isLoggedIn && state.user) {
-        loginBtn.classList.add('hidden');
-        profileTrigger.classList.remove('hidden');
+        elements.authGroup.classList.add('hidden');
+        elements.userProfile.classList.remove('hidden');
+        elements.logoutBtn.classList.remove('hidden');
+        
         document.getElementById('header-user-name').textContent = state.user.display_name || state.user.username;
         if (state.user.avatar_url) {
             document.getElementById('header-user-avatar').src = state.user.avatar_url;
         }
     } else {
-        loginBtn.classList.remove('hidden');
-        profileTrigger.classList.add('hidden');
+        elements.authGroup.classList.remove('hidden');
+        elements.userProfile.classList.add('hidden');
+        elements.logoutBtn.classList.add('hidden');
     }
 }
 
@@ -333,24 +431,46 @@ async function handleLogin() {
     }
 }
 
+async function handleRegister() {
+    const u = document.getElementById('reg-username').value;
+    const p = document.getElementById('reg-password').value;
+    const d = document.getElementById('reg-display').value;
+    
+    try {
+        const res = await fetch(`${API_BASE}/api/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: u, password: p, display_name: d })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        
+        state.authToken = data.token;
+        state.user = data.user;
+        localStorage.setItem('authToken', data.token);
+        
+        updateAuthUI(true);
+        hideModals();
+        showToast('Account created!', 'success');
+    } catch(e) { showToast(e.message, 'error'); }
+}
+
 function handleLogout() {
     state.authToken = null;
     state.user = null;
     localStorage.removeItem('authToken');
     updateAuthUI(false);
     showToast('Logged out');
-    showView('chat'); // Reset to main view
+    showView('chat'); 
 }
 
 /* --- Modal Helpers --- */
 function showModal(name, subType) {
     elements.modals.overlay.classList.remove('hidden');
-    // hide all cards first
     Object.values(elements.modals).forEach(el => {
         if(el && el !== elements.modals.overlay) el.classList.add('hidden');
     });
     
-    // show specific card
     if (elements.modals[name]) elements.modals[name].classList.remove('hidden');
 
     if (name === 'auth') toggleAuthMode(subType || 'login');
@@ -358,6 +478,11 @@ function showModal(name, subType) {
 
 function hideModals() {
     elements.modals.overlay.classList.add('hidden');
+    // Stop agent stream if closing agent modal
+    if (state.agentEventSource) {
+        state.agentEventSource.close();
+        state.agentEventSource = null;
+    }
 }
 
 function toggleAuthMode(mode) {
@@ -376,10 +501,7 @@ function toggleAuthMode(mode) {
 function handleFileUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
-    
     showToast(`Uploaded: ${file.name}`, 'success');
-    // Add logic here to actually send file to backend
-    // For now, simulating user message
     appendMessage(`[Uploaded Document: ${file.name}]`, 'user');
     elements.app.classList.add('chat-active');
 }

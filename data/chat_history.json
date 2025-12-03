@@ -182,5 +182,59 @@
     "title": "Saved chat",
     "messages": [],
     "updated_at": 1764404358.3242168
+  },
+  "session_1764762527_e9111e": {
+    "title": "hello",
+    "messages": [
+      {
+        "role": "user",
+        "text": "hello"
+      },
+      {
+        "role": "assistant",
+        "text": "Namaste! I'm LexiGPT, your Indian legal assistant. It's a pleasure to assist you with any legal queries or concerns you may have. Please feel free to ask me anything, and I'll do my best to provide you with accurate and well-structured answers backed by relevant citations."
+      }
+    ],
+    "updated_at": 1764762537.9101348
+  },
+  "session_1764762564_d5c6f6": {
+    "title": "hello",
+    "messages": [
+      {
+        "role": "user",
+        "text": "hello"
+      },
+      {
+        "role": "assistant",
+        "text": "Namaste! I'm LexiGPT, your Indian legal assistant. It's a pleasure to assist you with any legal queries or concerns you may have. Please feel free to ask me anything, and I'll do my best to provide you with accurate and well-structured answers backed by relevant citations from Indian laws and precedents."
+      },
+      {
+        "role": "user",
+        "text": "hello"
+      },
+      {
+        "role": "assistant",
+        "text": "Namaste! It seems like we've already exchanged a warm greeting earlier! As your Indian legal assistant, I'm here to help you with any legal questions or issues you may have. What's on your mind? Do you need assistance with a specific legal matter, or would you like me to provide some general information on a particular topic?"
+      }
+    ],
+    "updated_at": 1764762617.6035523
+  },
+  "session_1764764187_00bb48": {
+    "title": "what are all the questions that you can answer",
+    "messages": [
+      {
+        "role": "user",
+        "text": "what are all the questions that you can answer"
+      },
+      {
+        "role": "assistant",
+        "text": "As LexiGPT, I am designed to provide accurate and informative responses on a wide range of topics related to law, specifically in the context of Indian laws and regulations. Here are some examples of questions I can answer:\n\n**General Law**\n\n* What is the definition of [specific legal term]?\n* How does [Indian law or regulation] define [specific concept]?\n* Can you explain the difference between [two similar legal concepts]?\n\n**Criminal Law**\n\n* What are the penalties for [specific criminal offense] under Indian law?\n* How does India's criminal procedure code (CrPC) apply to [specific situation]?\n* Can you provide an overview of the investigation process in India for [specific crime]?\n\n**Civil Law**\n\n* What is the legal framework governing [specific area of civil law, e.g., contracts, torts, property] in India?\n* How do Indian courts approach [specific issue or dispute] in a civil case?\n* Can you explain the concept of [specific civil law doctrine or principle] and its application in Indian law?\n\n**Family Law**\n\n* What are the legal requirements for [specific family-related matter, e.g., marriage, divorce, adoption] in India?\n* How do Indian courts handle [specific family law issue, e.g., child custody, maintenance]?\n* Can you provide an overview of the laws governing [specific area of family law, e.g., Hindu Marriage Act, Muslim Personal Law]?\n\n**Corporate and Commercial Law**\n\n* What are the legal requirements for [specific corporate or commercial matter, e.g., company registration, intellectual property protection] in India?\n* How do Indian courts approach [specific issue or dispute] in a commercial case?\n* Can you explain the concept of [specific corporate or commercial law doctrine or principle] and its application in Indian law?\n\n**Intellectual Property Law**\n\n* What are the legal protections available for [specific type of intellectual property, e.g., patents, trademarks, copyrights] in India?\n* How do Indian courts handle [specific IP-related issue or dispute]?\n* Can you provide an overview of the laws governing [specific area of IP law, e.g., Copyright Act, Trademarks Act]?\n\n**Taxation Law**\n\n* What are the tax implications for [specific individual or entity] under Indian taxation laws?\n* How do Indian courts approach [specific tax-related issue or dispute]?\n* Can you explain the concept of [specific tax law doctrine or principle] and its application in Indian law?\n\n**Constitutional Law**\n\n* What are the fundamental rights guaranteed by the Indian Constitution?\n* How does the Indian Constitution define [specific constitutional concept, e.g., sovereignty, federalism]?\n* Can you provide an overview of the judicial review process under the Indian Constitution?\n\nThese are just a few examples of the types of questions I can answer. If your question falls outside these categories or requires specialized knowledge, please let me know and I'll do my best to assist you!"
+      },
+      {
+        "role": "user",
+        "text": "ok"
+      }
+    ],
+    "updated_at": 1764764327.122862
   }
 }

@@ -17,85 +17,47 @@
                 <div id="login-form" class="auth-section">
                     <h3>Welcome Back</h3>
                     <p class="modal-subtitle">Login to access your case files</p>
-                    <div class="input-group">
-                        <label>Username</label>
-                        <input type="text" id="login-username" placeholder="e.g. jdoe" />
-                    </div>
-                    <div class="input-group">
-                        <label>Password</label>
-                        <input type="password" id="login-password" placeholder="••••••••" />
-                    </div>
+                    <div class="input-group"><label>Username</label><input type="text" id="login-username" /></div>
+                    <div class="input-group"><label>Password</label><input type="password" id="login-password" /></div>
                     <button id="login-submit" class="btn-primary full-width">Sign In</button>
-                    <div class="auth-switch">
-                        <span>New here?</span>
-                        <button id="show-register" class="btn-text">Create an account</button>
-                    </div>
+                    <div class="auth-switch"><span>New here?</span><button id="show-register" class="btn-text">Create an account</button></div>
                 </div>
                 <div id="register-form" class="auth-section hidden">
                     <h3>Create Account</h3>
                     <p class="modal-subtitle">Get started with AI legal assistance</p>
-                    <div class="input-group">
-                        <label>Username</label>
-                        <input type="text" id="reg-username" />
-                    </div>
-                    <div class="input-group">
-                        <label>Password</label>
-                        <input type="password" id="reg-password" />
-                    </div>
-                    <div class="input-group">
-                        <label>Display Name</label>
-                        <input type="text" id="reg-display" />
-                    </div>
+                    <div class="input-group"><label>Username</label><input type="text" id="reg-username" /></div>
+                    <div class="input-group"><label>Password</label><input type="password" id="reg-password" /></div>
+                    <div class="input-group"><label>Display Name</label><input type="text" id="reg-display" /></div>
                     <button id="register-submit" class="btn-primary full-width">Register</button>
-                    <div class="auth-switch">
-                        <span>Already have an account?</span>
-                        <button id="show-login" class="btn-text">Sign In</button>
-                    </div>
+                    <div class="auth-switch"><span>Already have an account?</span><button id="show-login" class="btn-text">Sign In</button></div>
                 </div>
             </div>
+        </div>
+
+        <div class="modal-card large-modal hidden" id="agent-modal">
+            <button class="modal-close" data-close="agent">×</button>
+            <div class="modal-header">
+                <h3>Agent Workflow Logs</h3>
+                <div class="agent-controls">
+                    <button id="agent-start" class="btn-xs btn-secondary">Start Agent</button>
+                    <button id="agent-stop" class="btn-xs btn-danger-outline">Stop</button>
+                    <button id="agent-clear" class="btn-xs btn-secondary">Clear</button>
+                </div>
+            </div>
+            <div class="agent-toolbar">
+                <div class="filter-group">
+                    <select id="agent-filter-select" class="select-input"><option value="all">All Actions</option></select>
+                </div>
+                <label class="checkbox-label"><input type="checkbox" id="agent-pause-autoscroll" /> <span>Pause Scroll</span></label>
+            </div>
+            <div id="agent-log-container" class="terminal-view"><div class="log-entry system">Waiting for agent activity...</div></div>
         </div>
 
         <div class="modal-card hidden" id="profile-card">
             <button class="modal-close" data-close="profile">×</button>
             <h3>Account Settings</h3>
-            <div class="profile-layout">
-                <div class="avatar-section">
-                    <img id="profile-avatar-preview" class="avatar-lg" src="" alt="Profile" />
-                    <button id="profile-upload" class="btn-secondary btn-sm">Change Photo</button>
-                </div>
-                <div class="form-section">
-                    <div class="input-group">
-                        <label>Display Name</label>
-                        <input type="text" id="profile-display" />
-                    </div>
-                    <button id="profile-save" class="btn-primary">Save Changes</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal-card hidden" id="agent-modal">
-            <button class="modal-close" data-close="agent">×</button>
-            <div class="modal-header">
-                <h3>System Logs</h3>
-                <div class="agent-controls">
-                    <button id="agent-start" class="btn-secondary btn-xs">Start</button>
-                    <button id="agent-stop" class="btn-secondary btn-xs">Stop</button>
-                    <button id="agent-clear" class="btn-secondary btn-xs">Clear</button>
-                </div>
-            </div>
-            
-            <div class="agent-toolbar">
-                <div class="filter-group">
-                    <select id="agent-filter-select" class="select-input">
-                        <option value="all">All Events</option>
-                    </select>
-                    <input id="agent-search-input" class="text-input" placeholder="Search logs..." />
-                </div>
-                <label class="checkbox-label">
-                    <input type="checkbox" id="agent-pause-autoscroll" /> <span>Pause Scroll</span>
-                </label>
-            </div>
-            <div id="agent-log-container" class="terminal-view"></div>
+            <div class="input-group"><label>Display Name</label><input type="text" id="profile-display" /></div>
+            <button id="profile-save" class="btn-primary">Save Changes</button>
         </div>
     </div>
 
@@ -103,19 +65,17 @@
         <div class="sidebar-top">
             <div class="brand-header">
                 <div class="logo-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
                 </div>
                 <span class="brand-text">LexiGPT</span>
                 <button id="sidebar-toggle-btn" class="icon-btn" aria-label="Toggle Sidebar">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
                 </button>
             </div>
-            
             <button class="new-chat-btn">
-                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
                 <span>New Consultation</span>
             </button>
-
             <div class="search-bar">
                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                 <input type="search" id="sidebar-search-input" placeholder="Search history..." />
@@ -123,39 +83,49 @@
         </div>
 
         <div class="sidebar-content">
-            <div class="section-label">History</div>
-            <ul class="chats-list" id="chats-list">
-                </ul>
+            <div class="section-label">Recent Chats</div>
+            <ul class="chats-list" id="chats-list"></ul>
         </div>
 
         <div class="sidebar-footer">
-            <div class="footer-actions">
-                <button class="footer-item" id="export-chat" title="Export Case">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <div id="sidebar-auth-group" class="auth-buttons-group">
+                <button id="sidebar-login-btn" class="btn-auth-sidebar btn-secondary full-width" title="Sign In">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                    <span>Sign In</span>
                 </button>
-                <button class="footer-item" id="theme-toggle" title="Toggle Theme">
-                    <svg id="moon-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-                    <svg id="sun-icon" class="hidden" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-                </button>
-                <button class="footer-item" id="sidebar-settings-btn" title="Settings">
-                     <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06A2 2 0 0 1 3.28 18.9l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 0 1 5.1 3.28l.06.06a1.65 1.65 0 0 0 1.82.33H7a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09c.12.56.48 1.03 1 1.51h.02a1.65 1.65 0 0 0 1.82-.33l.06-.06A2 2 0 0 1 18.72 5.1l-.06.06c-.25.25-.44.56-.57.9.13.34.32.65.57.9l.06.06a1.65 1.65 0 0 0 .33 1.82V9c.57.25 1.03.61 1.51 1z"/></svg>
+                <button id="sidebar-register-btn" class="btn-auth-sidebar btn-primary full-width" title="Sign Up">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                    <span>Sign Up</span>
                 </button>
             </div>
-            
-            <div id="auth-controls" class="auth-controls">
-                <button id="login-btn" class="btn-auth-sidebar">Sign In</button>
-                <div id="user-profile-trigger" class="user-profile hidden">
-                    <img id="header-user-avatar" src="" alt="User" />
-                    <div class="user-info">
-                        <span id="header-user-name">User</span>
-                        <span class="user-role">Free Plan</span>
-                    </div>
-                </div>
+
+            <div id="user-profile-trigger" class="user-profile hidden">
+                <img id="header-user-avatar" src="" alt="User" />
+                <div class="user-info"><span id="header-user-name">User</span></div>
+            </div>
+
+            <div class="footer-actions">
+                <button class="footer-item" id="sidebar-settings-btn" title="Settings">
+                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+                <button class="footer-item hidden" id="sidebar-logout-btn" title="Logout">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </button>
+                 <button class="footer-item" id="sidebar-agent-btn" title="Agent Logs">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                </button>
             </div>
         </div>
     </aside>
 
     <main class="main-content">
+        <div class="top-header">
+             <button class="theme-btn" id="theme-toggle" title="Toggle Theme">
+                <svg id="moon-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                <svg id="sun-icon" class="hidden" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            </button>
+        </div>
+
         <div id="settings-page" class="settings-page hidden">
             <div class="settings-header">
                 <button id="settings-back" class="btn-ghost">← Back to Chat</button>
@@ -164,15 +134,10 @@
             <div class="settings-container">
                 <div class="setting-card">
                     <h4>Appearance</h4>
-                    <p>Customize your reading experience</p>
-                    <label class="toggle-row">
-                        <span>Streaming Responses</span>
-                        <input type="checkbox" id="settings-stream-default">
-                    </label>
+                    <label class="toggle-row"><span>Streaming Responses</span><input type="checkbox" id="settings-stream-default"></label>
                 </div>
                 <div class="setting-card">
                     <h4>Session Management</h4>
-                    <p>Control your active sessions</p>
                     <button id="settings-logout-all" class="btn-danger-outline">Log out of all devices</button>
                 </div>
             </div>
@@ -181,20 +146,19 @@
         <div id="chat-view" class="chat-view">
             <div id="initial-content" class="initial-state">
                 <div class="logo-large">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
                 </div>
                 <h1>How can I help with your case?</h1>
-                <p>Upload documents or ask a legal question to get started.</p>
             </div>
 
             <div id="chat-history" class="chat-scroll-area"></div>
 
-            <div class="prompt-container">
+            <div class="prompt-container center-mode">
                 <div class="input-wrapper">
                     <button id="upload-icon" class="input-action-btn" title="Upload Document">
                         <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                     </button>
-                    <input type="text" id="prompt-input" placeholder="Ask a question or describe a legal situation..." />
+                    <input type="text" id="prompt-input" placeholder="Ask a legal question..." />
                     <button id="send-btn" class="input-send-btn">
                         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                     </button>
@@ -204,7 +168,6 @@
             </div>
         </div>
     </main>
-
     <script src="script.js"></script>
 </body>
 </html>
