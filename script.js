@@ -1,1237 +1,385 @@
-const initialPromptInput = document.getElementById('initial-prompt-input');
-const promptInput = document.getElementById('prompt-input');
-const chatHistory = document.getElementById('chat-history');
-const body = document.body;
-const sidebar = document.querySelector('.sidebar');
-const sidebarBackdrop = document.querySelector('.sidebar-backdrop');
-const sidebarToggle = document.querySelector('.sidebar-toggle');
-const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
-const fileUploadInput = document.getElementById('file-upload-input');
-const uploadIcon = document.getElementById('upload-icon');
-const initialUploadIcon = document.getElementById('initial-upload-icon');
-const themeToggle = document.getElementById('theme-toggle');
-const moonIcon = document.getElementById('moon-icon');
-const sunIcon = document.getElementById('sun-icon');
-const chatsList = document.getElementById('chats-list');
+/* --- Configuration & State --- */
+const API_BASE = window.__LEXIGPT_API__ || (window.location.origin.startsWith('http') ? '' : 'http://localhost:5000');
+const state = {
+    authToken: localStorage.getItem('authToken'),
+    refreshToken: localStorage.getItem('refreshToken'),
+    user: null,
+    activeSession: null,
+    streamMode: localStorage.getItem('STREAM_MODE') === 'true',
+    sidebarExpanded: localStorage.getItem('SIDEBAR_EXPANDED') !== 'false' // default true
+};
 
-const isHttpOrigin = window.location.origin.startsWith('http');
-const API_BASE = window.__LEXIGPT_API__ || (isHttpOrigin ? '' : 'http://localhost:5000');
-const apiUrl = (path) => `${API_BASE}${path}`;
-let activeSession = null;
-let STREAM_MODE = false;
-const sidebarSearch = document.getElementById('sidebar-search-input');
-let authToken = localStorage.getItem('authToken') || null;
-let currentUser = null;
-let refreshToken = localStorage.getItem('refreshToken') || null;
-
-// Auth controls
-const loginBtn = document.getElementById('login-btn');
-const registerBtn = document.getElementById('register-btn');
-const settingsBtn = document.getElementById('settings-btn');
-const profileBtn = document.getElementById('profile-btn');
-
-if (loginBtn) loginBtn.addEventListener('click', showLoginModal);
-if (registerBtn) registerBtn.addEventListener('click', showRegisterModal);
-// Open settings page in main view instead of modal
-if (settingsBtn) settingsBtn.addEventListener('click', showSettingsPage);
-if (profileBtn) profileBtn.addEventListener('click', () => document.getElementById('profile-modal').classList.remove('hidden'));
-
-// Sidebar auth buttons (mirror actions so they work from sidebar)
-const sidebarLoginBtn = document.getElementById('sidebar-login-btn');
-const sidebarRegisterBtn = document.getElementById('sidebar-register-btn');
-const sidebarProfileBtn = document.getElementById('sidebar-profile-btn');
-const sidebarSettingsBtn = document.getElementById('sidebar-settings-btn');
-const sidebarLogoutBtn = document.getElementById('sidebar-logout-btn');
-
-if (sidebarLoginBtn) sidebarLoginBtn.addEventListener('click', showLoginModal);
-if (sidebarRegisterBtn) sidebarRegisterBtn.addEventListener('click', showRegisterModal);
-if (sidebarSettingsBtn) sidebarSettingsBtn.addEventListener('click', showSettingsPage);
-if (sidebarProfileBtn) sidebarProfileBtn.addEventListener('click', () => { if (profileBtn) profileBtn.click(); else document.getElementById('profile-modal').classList.remove('hidden'); });
-if (sidebarLogoutBtn) sidebarLogoutBtn.addEventListener('click', () => { const hdr = document.getElementById('logout-btn'); if (hdr) hdr.click(); });
-
-async function initAuth() {
-    if (!authToken) return updateAuthUI();
-    try {
-        const res = await fetch(apiUrl('/api/auth/me'), { headers: { 'Authorization': 'Bearer ' + authToken } });
-        if (!res.ok) { authToken = null; localStorage.removeItem('authToken'); return updateAuthUI(); }
-        const d = await res.json();
-        if (d && d.user) {
-            currentUser = d.user;
-            updateAuthUI();
-        }
-    } catch (e) {
-        console.warn('Auth init failed', e);
-        authToken = null; localStorage.removeItem('authToken');
-        updateAuthUI();
+/* --- UI Elements --- */
+const elements = {
+    app: document.body,
+    sidebar: document.getElementById('app-sidebar'),
+    chatView: document.getElementById('chat-view'),
+    chatHistory: document.getElementById('chat-history'),
+    promptInput: document.getElementById('prompt-input'),
+    initialState: document.getElementById('initial-content'),
+    fileInput: document.getElementById('file-upload-input'),
+    modals: {
+        overlay: document.getElementById('modal-overlay'),
+        auth: document.getElementById('auth-modal-card'),
+        profile: document.getElementById('profile-card'),
+        agent: document.getElementById('agent-modal')
     }
+};
+
+/* --- Core Initialization --- */
+document.addEventListener('DOMContentLoaded', async () => {
+    initTheme();
+    initSidebar();
+    await initAuth();
+    loadChats();
+    setupEventListeners();
+});
+
+/* --- Event Listeners Setup --- */
+function setupEventListeners() {
+    // Input Handling
+    document.getElementById('send-btn').addEventListener('click', submitMessage);
+    elements.promptInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submitMessage();
+    });
+    
+    // File Upload
+    document.getElementById('upload-icon').addEventListener('click', () => elements.fileInput.click());
+    elements.fileInput.addEventListener('change', handleFileUpload);
+
+    // Sidebar Toggles
+    document.getElementById('sidebar-toggle-btn').addEventListener('click', toggleSidebar);
+    document.querySelector('.new-chat-btn').addEventListener('click', startNewChat);
+
+    // Auth & Modals
+    document.getElementById('login-btn').addEventListener('click', () => showModal('auth', 'login'));
+    document.querySelector('.user-profile').addEventListener('click', () => showModal('profile'));
+    document.getElementById('show-register').addEventListener('click', () => toggleAuthMode('register'));
+    document.getElementById('show-login').addEventListener('click', () => toggleAuthMode('login'));
+    
+    // Modal Closers
+    document.querySelectorAll('.modal-close').forEach(btn => {
+        btn.addEventListener('click', hideModals);
+    });
+    elements.modals.overlay.addEventListener('click', (e) => {
+        if (e.target === elements.modals.overlay) hideModals();
+    });
+
+    // Auth Submissions
+    document.getElementById('login-submit').addEventListener('click', handleLogin);
+    document.getElementById('register-submit').addEventListener('click', handleRegister);
+    document.getElementById('settings-logout-all').addEventListener('click', handleLogout);
+
+    // Theme
+    document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+
+    // Settings Navigation
+    document.getElementById('sidebar-settings-btn').addEventListener('click', () => showView('settings'));
+    document.getElementById('settings-back').addEventListener('click', () => showView('chat'));
 }
 
-function updateAuthUI() {
-    if (currentUser) {
-        if (loginBtn) loginBtn.style.display = 'none';
-        if (registerBtn) registerBtn.style.display = 'none';
-        if (settingsBtn) settingsBtn.style.display = 'inline-flex';
-        // show header user
-        const nameEl = document.getElementById('header-user-name');
-        const avatarEl = document.getElementById('header-user-avatar');
-        const logoutBtn = document.getElementById('logout-btn');
-        if (nameEl) { nameEl.textContent = currentUser.display_name || currentUser.username; nameEl.style.display = '' }
-        if (avatarEl && currentUser.avatar_url) { avatarEl.src = (API_BASE || '') + currentUser.avatar_url; avatarEl.style.display = '' }
-        if (logoutBtn) logoutBtn.style.display = 'inline-flex';
-        // sidebar mirrors
-        const sLogin = document.getElementById('sidebar-login-btn');
-        const sReg = document.getElementById('sidebar-register-btn');
-        const sProfile = document.getElementById('sidebar-profile-btn');
-        const sSettings = document.getElementById('sidebar-settings-btn');
-        const sLogout = document.getElementById('sidebar-logout-btn');
-        if (sLogin) sLogin.style.display = 'none';
-        if (sReg) sReg.style.display = 'none';
-        if (sProfile) sProfile.style.display = '';
-        if (sSettings) sSettings.style.display = '';
-        if (sLogout) sLogout.style.display = '';
+/* --- UI Helper Functions --- */
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<span>${message}</span>`; // Safe for simple text
+    container.appendChild(toast);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+function showView(viewName) {
+    if (viewName === 'settings') {
+        document.getElementById('settings-page').classList.remove('hidden');
+        document.getElementById('chat-view').classList.add('hidden');
     } else {
-        if (loginBtn) loginBtn.style.display = 'inline-flex';
-        if (registerBtn) registerBtn.style.display = 'inline-flex';
-        if (settingsBtn) settingsBtn.style.display = 'none';
-        const nameEl = document.getElementById('header-user-name');
-        const avatarEl = document.getElementById('header-user-avatar');
-        const logoutBtn = document.getElementById('logout-btn');
-        if (nameEl) nameEl.style.display = 'none';
-        if (avatarEl) { avatarEl.src = ''; avatarEl.style.display = 'none'; }
-        if (logoutBtn) logoutBtn.style.display = 'none';
-        const sLogin = document.getElementById('sidebar-login-btn');
-        const sReg = document.getElementById('sidebar-register-btn');
-        const sProfile = document.getElementById('sidebar-profile-btn');
-        const sSettings = document.getElementById('sidebar-settings-btn');
-        const sLogout = document.getElementById('sidebar-logout-btn');
-        if (sLogin) sLogin.style.display = '';
-        if (sReg) sReg.style.display = '';
-        if (sProfile) sProfile.style.display = 'none';
-        if (sSettings) sSettings.style.display = 'none';
-        if (sLogout) sLogout.style.display = 'none';
+        document.getElementById('settings-page').classList.add('hidden');
+        document.getElementById('chat-view').classList.remove('hidden');
     }
 }
 
-function showLoginModal() {
-    showAuthModal('login');
+function toggleTheme() {
+    const isLight = document.body.getAttribute('data-theme') === 'light';
+    const newTheme = isLight ? 'dark' : 'light';
+    document.body.setAttribute('data-theme', newTheme);
+    document.getElementById('moon-icon').classList.toggle('hidden', !isLight); // if becoming dark, show moon? No, show sun in dark mode usually
+    document.getElementById('sun-icon').classList.toggle('hidden', isLight);
+    localStorage.setItem('theme', newTheme);
 }
 
-function showRegisterModal() {
-    showAuthModal('register');
-}
-
-function showAuthModal(mode = 'login') {
-    const overlay = document.getElementById('modal-overlay');
-    if (!overlay) return;
-    overlay.classList.remove('hidden');
-    const loginForm = document.getElementById('login-form');
-    const registerForm = document.getElementById('register-form');
-    if (mode === 'login') { loginForm.classList.remove('hidden'); registerForm.classList.add('hidden'); }
-    else { registerForm.classList.remove('hidden'); loginForm.classList.add('hidden'); }
-}
-
-function hideAuthModal() {
-    const overlay = document.getElementById('modal-overlay');
-    if (!overlay) return;
-    overlay.classList.add('hidden');
-}
-
-// Modal wiring
-document.addEventListener('DOMContentLoaded', () => {
-    const overlay = document.getElementById('modal-overlay');
-    const closeBtn = document.getElementById('modal-close');
-    const showLogin = document.getElementById('show-login');
-    const showRegister = document.getElementById('show-register');
-    const loginSubmit = document.getElementById('login-submit');
-    const registerSubmit = document.getElementById('register-submit');
-    const logoutBtn = document.getElementById('logout-btn');
-
-    if (closeBtn) closeBtn.addEventListener('click', hideAuthModal);
-    if (overlay) overlay.addEventListener('click', (e) => { if (e.target === overlay) hideAuthModal(); });
-    if (showLogin) showLogin.addEventListener('click', () => showAuthModal('login'));
-    if (showRegister) showRegister.addEventListener('click', () => showAuthModal('register'));
-
-    if (loginSubmit) loginSubmit.addEventListener('click', async () => {
-        const u = document.getElementById('login-username').value.trim();
-        const p = document.getElementById('login-password').value.trim();
-        if (!u || !p) return alert('Enter username and password');
-        try {
-            const res = await fetch(apiUrl('/api/auth/login'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p }) });
-            const d = await res.json();
-            if (!res.ok) return alert(d.error || 'Login failed');
-            if (d.token) {
-                authToken = d.token;
-                localStorage.setItem('authToken', authToken);
-                if (d.refresh_token) { refreshToken = d.refresh_token; localStorage.setItem('refreshToken', refreshToken); }
-                currentUser = d.user;
-                updateAuthUI();
-                hideAuthModal();
-            }
-        } catch (e) { console.error(e); alert('Login failed'); }
-    });
-
-    if (registerSubmit) registerSubmit.addEventListener('click', async () => {
-        const u = document.getElementById('reg-username').value.trim();
-        const p = document.getElementById('reg-password').value.trim();
-        const dn = document.getElementById('reg-display').value.trim();
-        if (!u || !p) return alert('Choose username and password');
-        try {
-            const res = await fetch(apiUrl('/api/auth/register'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p, display_name: dn }) });
-            const d = await res.json();
-            if (!res.ok) return alert(d.error || 'Registration failed');
-            if (d.token) {
-                authToken = d.token;
-                localStorage.setItem('authToken', authToken);
-                if (d.refresh_token) { refreshToken = d.refresh_token; localStorage.setItem('refreshToken', refreshToken); }
-                currentUser = d.user;
-                updateAuthUI();
-                hideAuthModal();
-            }
-        } catch (e) { console.error(e); alert('Registration failed'); }
-    });
-
-    if (logoutBtn) logoutBtn.addEventListener('click', async () => {
-        try {
-            const body = refreshToken ? { refresh_token: refreshToken } : {};
-            const res = await fetch(apiUrl('/api/auth/logout'), { method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-            if (res.ok) {
-                authToken = null; localStorage.removeItem('authToken'); currentUser = null; updateAuthUI();
-                refreshToken = null; localStorage.removeItem('refreshToken');
-                alert('Logged out');
-            } else {
-                alert('Logout failed');
-            }
-        } catch (e) { console.error(e); alert('Logout failed'); }
-    });
-});
-
-// Profile modal wiring
-document.addEventListener('DOMContentLoaded', () => {
-    const profileBtn = document.getElementById('profile-btn');
-    const profileModal = document.getElementById('profile-modal');
-    const profileClose = document.getElementById('profile-close');
-    const profileSave = document.getElementById('profile-save');
-    const profileUpload = document.getElementById('profile-upload');
-    const profileDisplay = document.getElementById('profile-display');
-    const profileAvatarPreview = document.getElementById('profile-avatar-preview');
-
-    if (profileBtn) profileBtn.addEventListener('click', async () => {
-        // ensure we have auth and currentUser
-        if (!currentUser) {
-            alert('Please login first');
-            return;
-        }
-        // fill fields
-        profileDisplay.value = currentUser.display_name || currentUser.username;
-        if (currentUser.avatar_url) { profileAvatarPreview.src = (API_BASE || '') + currentUser.avatar_url; profileAvatarPreview.style.display = ''; } else { profileAvatarPreview.style.display = 'none'; }
-        profileModal.classList.remove('hidden');
-    });
-    if (profileClose) profileClose.addEventListener('click', () => profileModal.classList.add('hidden'));
-    if (profileModal) profileModal.addEventListener('click', (e) => { if (e.target === profileModal) profileModal.classList.add('hidden'); });
-
-    if (profileUpload) profileUpload.addEventListener('click', () => {
-        const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
-        input.onchange = async (ev) => {
-            const file = ev.target.files[0]; if (!file) return;
-            const fd = new FormData(); fd.append('avatar', file);
-            try {
-                // ensure token
-                const ok = await ensureAuth(); if (!ok) return alert('Not authenticated');
-                const res = await fetch(apiUrl('/api/auth/upload-avatar'), { method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken }, body: fd });
-                if (!res.ok) return alert('Upload failed');
-                const d = await res.json();
-                if (d.avatar_url) {
-                    currentUser.avatar_url = d.avatar_url;
-                    profileAvatarPreview.src = (API_BASE || '') + d.avatar_url; profileAvatarPreview.style.display = '';
-                    // update header
-                    const headerAvatar = document.getElementById('header-user-avatar'); if (headerAvatar) { headerAvatar.src = (API_BASE || '') + d.avatar_url; headerAvatar.style.display = ''; }
-                    alert('Avatar updated');
-                }
-            } catch (e) { console.error(e); alert('Upload failed'); }
-        };
-        input.click();
-    });
-
-    if (profileSave) profileSave.addEventListener('click', async () => {
-        const newName = profileDisplay.value.trim();
-        if (!newName) return alert('Enter a display name');
-        try {
-            const ok = await ensureAuth(); if (!ok) return alert('Not authenticated');
-            const res = await fetchWithAuth(apiUrl('/api/auth/update-profile'), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ display_name: newName }) });
-            if (!res.ok) { const d = await res.json().catch(()=>({})); return alert(d.error || 'Save failed'); }
-            const d = await res.json();
-            if (d.user) { currentUser = d.user; updateAuthUI(); profileModal.classList.add('hidden'); alert('Profile updated'); }
-        } catch (e) { console.error(e); alert('Update failed'); }
-    });
-});
-
-// Settings page actions
-document.addEventListener('DOMContentLoaded', () => {
-    const settingsBack = document.getElementById('settings-back');
-    const settingsSave = document.getElementById('settings-save-profile');
-    const settingsUpload = document.getElementById('settings-upload-avatar');
-    const settingsStream = document.getElementById('settings-stream-default');
-    const logoutAllBtn = document.getElementById('settings-logout-all');
-
-    if (settingsBack) settingsBack.addEventListener('click', () => hideSettingsPage());
-    if (settingsStream) settingsStream.addEventListener('change', () => {
-        localStorage.setItem('STREAM_MODE_DEFAULT', settingsStream.checked ? 'true' : 'false');
-    });
-
-    if (settingsSave) settingsSave.addEventListener('click', async () => {
-        const newName = document.getElementById('settings-display').value.trim();
-        if (!newName) return alert('Enter a display name');
-        const ok = await ensureAuth(); if (!ok) return alert('Not authenticated');
-        try {
-            const res = await fetchWithAuth(apiUrl('/api/auth/update-profile'), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ display_name: newName }) });
-            if (!res.ok) { const d = await res.json().catch(()=>({})); return alert(d.error || 'Save failed'); }
-            const d = await res.json(); currentUser = d.user; updateAuthUI(); alert('Saved');
-        } catch (e) { console.error(e); alert('Save failed'); }
-    });
-
-    if (settingsUpload) settingsUpload.addEventListener('click', () => {
-        const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
-        input.onchange = async (ev) => {
-            const file = ev.target.files[0]; if (!file) return;
-            const fd = new FormData(); fd.append('avatar', file);
-            const ok = await ensureAuth(); if (!ok) return alert('Not authenticated');
-            try {
-                const res = await fetch(apiUrl('/api/auth/upload-avatar'), { method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken }, body: fd });
-                if (!res.ok) return alert('Upload failed');
-                const d = await res.json(); if (d.avatar_url) { currentUser.avatar_url = d.avatar_url; updateAuthUI(); alert('Avatar updated'); }
-            } catch (e) { console.error(e); alert('Upload failed'); }
-        };
-        input.click();
-    });
-
-    if (logoutAllBtn) logoutAllBtn.addEventListener('click', async () => {
-        if (!confirm('Logout from all sessions?')) return;
-        const ok = await ensureAuth(); if (!ok) return alert('Not authenticated');
-        try {
-            const res = await fetchWithAuth(apiUrl('/api/auth/logout-all'), { method: 'POST' });
-            if (res.ok) { authToken = null; refreshToken = null; localStorage.removeItem('authToken'); localStorage.removeItem('refreshToken'); currentUser = null; updateAuthUI(); alert('Logged out from all sessions'); hideSettingsPage(); }
-            else { alert('Logout all failed'); }
-        } catch (e) { console.error(e); alert('Logout all failed'); }
-    });
-});
-
-// Helper: ensure we have a valid authToken, try refresh if needed
-async function ensureAuth() {
-    if (authToken) return true;
-    if (!refreshToken) return false;
-    try {
-        const res = await fetch(apiUrl('/api/auth/refresh'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: refreshToken }) });
-        if (!res.ok) { refreshToken = null; localStorage.removeItem('refreshToken'); return false; }
-        const d = await res.json();
-        if (d && d.token) { authToken = d.token; localStorage.setItem('authToken', authToken); return true; }
-    } catch (e) { console.warn('refresh failed', e); }
-    return false;
-}
-
-// fetch wrapper that automatically attempts refresh on 401 once
-async function fetchWithAuth(url, opts = {}) {
-    opts.headers = opts.headers || {};
-    if (authToken) opts.headers['Authorization'] = 'Bearer ' + authToken;
-    let res = await fetch(url, opts);
-    if (res.status === 401 && refreshToken) {
-        const ok = await ensureAuth();
-        if (ok) {
-            opts.headers['Authorization'] = 'Bearer ' + authToken;
-            res = await fetch(url, opts);
-        }
+function initTheme() {
+    const saved = localStorage.getItem('theme') || 'dark';
+    document.body.setAttribute('data-theme', saved);
+    if(saved === 'light') {
+        document.getElementById('moon-icon').classList.add('hidden');
+        document.getElementById('sun-icon').classList.remove('hidden');
     }
-    return res;
 }
 
-function showSettingsModal() {
-    // Simple settings dialog using prompt for avatar upload via file input
-    // open settings page in main content
-    showSettingsPage();
+/* --- Sidebar Logic --- */
+function toggleSidebar() {
+    state.sidebarExpanded = !state.sidebarExpanded;
+    localStorage.setItem('SIDEBAR_EXPANDED', state.sidebarExpanded);
+    updateSidebarUI();
 }
 
-function showSettingsPage() {
-    // populate fields
-    const settings = document.getElementById('settings-page');
-    if (!settings) return;
-    // hide chat view elements to show settings instead
-    settings.classList.remove('hidden');
-    document.querySelector('.prompt-area').style.display = 'none';
-    const chatHist = document.getElementById('chat-history'); if (chatHist) chatHist.style.display = 'none';
-    // fill current values
-    const disp = document.getElementById('settings-display');
-    if (disp && currentUser) disp.value = currentUser.display_name || currentUser.username;
-    const streamChk = document.getElementById('settings-stream-default');
-    if (streamChk) streamChk.checked = !!(localStorage.getItem('STREAM_MODE_DEFAULT') === 'true');
+function initSidebar() {
+    // Check if mobile
+    if (window.innerWidth < 768) state.sidebarExpanded = false;
+    updateSidebarUI();
 }
 
-function hideSettingsPage() {
-    const settings = document.getElementById('settings-page');
-    if (!settings) return;
-    settings.classList.add('hidden');
-    document.querySelector('.prompt-area').style.display = '';
-    const chatHist = document.getElementById('chat-history'); if (chatHist) chatHist.style.display = '';
-}
-
-// Sidebar state management (persisted)
-function setSidebarExpanded(expanded, persist = true) {
-    if (!sidebar) return;
-    if (expanded) {
-        sidebar.classList.add('expanded');
-        sidebar.classList.remove('collapsed');
+function updateSidebarUI() {
+    if (state.sidebarExpanded) {
+        elements.sidebar.classList.remove('collapsed');
+        elements.sidebar.classList.add('expanded');
     } else {
-        sidebar.classList.remove('expanded');
-        sidebar.classList.add('collapsed');
+        elements.sidebar.classList.add('collapsed');
+        elements.sidebar.classList.remove('expanded');
     }
-    if (persist) localStorage.setItem('SIDEBAR_EXPANDED', expanded ? 'true' : 'false');
-    // reflect to toggle button aria state
+}
+
+/* --- Chat Logic --- */
+async function submitMessage() {
+    const text = elements.promptInput.value.trim();
+    if (!text) return;
+    
+    elements.promptInput.value = '';
+    
+    // UI Update
+    if (!state.activeSession) {
+        elements.app.classList.add('chat-active');
+    }
+    
+    appendMessage(text, 'user');
+    
+    // Bot Placeholder
+    const botMsgId = appendMessage('...', 'bot', true); // returns ID
+    const botContentEl = document.getElementById(botMsgId).querySelector('.message-bubble');
+
     try {
-        const btn = document.getElementById('sidebar-toggle-btn');
-        if (btn) btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-    } catch (e) { /* ignore */ }
-}
+        const res = await fetch(`${API_BASE}/api/chat`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': state.authToken ? `Bearer ${state.authToken}` : ''
+            },
+            body: JSON.stringify({ message: text, session_id: state.activeSession })
+        });
 
-// initialize sidebar from persisted state (defaults to expanded on wide screens)
-(function initSidebarState(){
-    try {
-        const pref = localStorage.getItem('SIDEBAR_EXPANDED');
-        if (pref === null) {
-            // use existing DOM classes as fallback
-            const expanded = sidebar && sidebar.classList.contains('expanded');
-            setSidebarExpanded(!!expanded, false);
-        } else {
-            setSidebarExpanded(pref === 'true', false);
-        }
-    } catch(e){ console.warn('sidebar init failed', e); }
-})();
+        const data = await res.json();
+        
+        if (!res.ok) throw new Error(data.error || 'Failed to get response');
 
-if (sidebarToggle) sidebarToggle.addEventListener('click', function() {
-    const isExpanded = sidebar && sidebar.classList.contains('expanded');
-    setSidebarExpanded(!isExpanded);
-});
-
-// keyboard activation for sidebar toggle (Enter/Space)
-if (sidebarToggle) {
-    sidebarToggle.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            sidebarToggle.click();
-        }
-    });
-}
-
-const newChatButton = document.querySelector('.sidebar-item-new-chat');
-if (newChatButton) {
-    newChatButton.addEventListener('click', startNewChat);
-}
-
-// Stream toggle button
-const streamToggle = document.getElementById('stream-toggle');
-if (streamToggle) {
-    streamToggle.addEventListener('click', () => {
-        STREAM_MODE = !STREAM_MODE;
-        document.getElementById('stream-off').classList.toggle('hidden', STREAM_MODE);
-        document.getElementById('stream-on').classList.toggle('hidden', !STREAM_MODE);
-        streamToggle.title = STREAM_MODE ? 'Streaming enabled' : 'Streaming disabled';
-    });
-}
-
-// Sidebar toggle for mobile
-mobileMenuToggle.addEventListener('click', function() {
-    // open temporarily on mobile (do not persist)
-    setSidebarExpanded(true, false);
-});
-
-// Header show/hide on scroll-up with top-hover reveal
-const headerMain = document.querySelector('.header-main');
-let lastScrollY = window.scrollY || 0;
-let scrollTicking = false;
-function onScroll() {
-    if (scrollTicking) return;
-    scrollTicking = true;
-    requestAnimationFrame(() => {
-        const y = window.scrollY || 0;
-        if (!headerMain) { scrollTicking = false; return; }
-        if (y > lastScrollY + 8 && y > 80) {
-            // scrolled down
-            headerMain.classList.add('hide-header');
-        } else if (y < lastScrollY - 8 || y <= 80) {
-            // scrolled up
-            headerMain.classList.remove('hide-header');
-        }
-        lastScrollY = y;
-        scrollTicking = false;
-    });
-}
-window.addEventListener('scroll', onScroll, { passive: true });
-
-// reveal header when mouse is near top (helps when hidden)
-window.addEventListener('mousemove', (e) => {
-    if (!headerMain) return;
-    if (e.clientY < 60) headerMain.classList.remove('hide-header');
-});
-
-// Header search panel toggling
-const headerSearchToggle = document.getElementById('header-search-toggle');
-const headerSearchPanel = document.getElementById('header-search-panel');
-const headerSearchInput = document.getElementById('header-search-input');
-const headerSearchClose = document.getElementById('header-search-close');
-if (headerSearchToggle && headerSearchPanel) {
-    headerSearchToggle.addEventListener('click', () => {
-        const expanded = headerSearchToggle.getAttribute('aria-expanded') === 'true';
-        headerSearchToggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
-        headerSearchPanel.setAttribute('aria-hidden', expanded ? 'true' : 'false');
-        if (!expanded && headerSearchInput) { setTimeout(()=>headerSearchInput.focus(), 120); }
-    });
-}
-if (headerSearchClose && headerSearchPanel) {
-    headerSearchClose.addEventListener('click', () => {
-        headerSearchPanel.setAttribute('aria-hidden', 'true');
-        if (headerSearchToggle) headerSearchToggle.setAttribute('aria-expanded', 'false');
-    });
-}
-
-// Wire header search input to filter chat list (debounced)
-if (headerSearchInput) {
-    let searchTimer = null;
-    headerSearchInput.addEventListener('input', (e) => {
-        const q = e.target.value.trim().toLowerCase();
-        if (searchTimer) clearTimeout(searchTimer);
-        searchTimer = setTimeout(()=>{
-            // reuse existing renderChatList function by setting sidebarSearch value
-            if (sidebarSearch) sidebarSearch.value = q;
-            renderChatList();
-        }, 220);
-    });
-}
-
-// Hide sidebar when clicking outside on mobile
-sidebarBackdrop.addEventListener('click', function() {
-    sidebar.classList.remove('expanded');
-});
-
-// Event listener for the main chat upload icon
-uploadIcon.addEventListener('click', () => {
-    fileUploadInput.click();
-});
-
-// Event listener for the initial screen upload icon
-initialUploadIcon.addEventListener('click', () => {
-    fileUploadInput.click();
-});
-
-// Event listener for file selection
-fileUploadInput.addEventListener('change', (event) => {
-    const file = event.target.files[0];
-    if (file) {
-        if (!body.classList.contains('chat-started')) {
-            body.classList.add('chat-started');
-            initialPromptInput.value = '';
+        state.activeSession = data.session_id;
+        botContentEl.textContent = data.response;
+        
+        // Add "Reasoning" button if data exists
+        if (data.explain || data.sources) {
+            addReasoningTrigger(botContentEl.parentElement, data);
         }
 
-        const uploadMessage = `User has uploaded a document: ${file.name}`;
-        handleUserMessage(uploadMessage);
-        fileUploadInput.value = '';
+    } catch (err) {
+        botContentEl.textContent = "Error: " + err.message;
+        botContentEl.parentElement.style.color = 'var(--danger)';
     }
-});
-
-// Theme Toggle Logic
-function setTheme(theme) {
-    if (theme === 'light') {
-        body.setAttribute('data-theme', 'light');
-        moonIcon.classList.add('hidden');
-        sunIcon.classList.remove('hidden');
-    } else {
-        body.removeAttribute('data-theme');
-        moonIcon.classList.remove('hidden');
-        sunIcon.classList.add('hidden');
-    }
-    localStorage.setItem('theme', theme);
+    
+    loadChats(); // Refresh sidebar list
 }
 
-// Set initial theme on page load
-const savedTheme = localStorage.getItem('theme') || 'dark';
-setTheme(savedTheme);
-
-// Toggle theme on button click
-themeToggle.addEventListener('click', () => {
-    const currentTheme = body.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-    setTheme(currentTheme);
-});
-
-// Function to add a message to chat history
-function sendMessage(message, isUser = true, opts = {}) {
-    const msgDiv = document.createElement('div');
-    msgDiv.className = `chat-message ${isUser ? 'user-message' : 'bot-message'}`;
-
-    // Avatar
+function appendMessage(text, role, isLoading = false) {
+    const id = 'msg-' + Date.now();
+    const div = document.createElement('div');
+    div.className = `chat-message ${role}-message`;
+    div.id = id;
+    
     const avatar = document.createElement('div');
     avatar.className = 'message-avatar';
-    avatar.title = isUser ? 'You' : 'Assistant';
-    // If caller provided an avatar URL, use it; otherwise use initial
-    if (opts.avatarUrl) {
-        avatar.style.backgroundImage = `url('${opts.avatarUrl}')`;
-        avatar.style.backgroundSize = 'cover';
-        avatar.style.backgroundPosition = 'center';
-        avatar.textContent = '';
-    } else if (isUser && currentUser && currentUser.avatar_url) {
-        // use logged-in user's avatar
-        const full = (API_BASE || '') + currentUser.avatar_url;
-        avatar.style.backgroundImage = `url('${full}')`;
-        avatar.style.backgroundSize = 'cover';
-        avatar.style.backgroundPosition = 'center';
-        avatar.textContent = '';
-    } else {
-        avatar.textContent = isUser ? 'U' : 'A';
-    }
-    msgDiv.appendChild(avatar);
-
-    const contentWrapper = document.createElement('div');
-    contentWrapper.className = 'message-bubble';
-
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'message-content';
-    contentDiv.textContent = message;
-    contentWrapper.appendChild(contentDiv);
-
-    msgDiv.appendChild(contentWrapper);
-
-    // For assistant messages, add a small bottom-right trigger to show chain-of-thought / sources
-    if (!isUser) {
-        // Ensure bubble has relative positioning so dropdown can be absolute
-        contentWrapper.classList.add('message-bubble');
-
-        const cotTrigger = document.createElement('button');
-        cotTrigger.className = 'cot-trigger';
-        cotTrigger.title = 'Show reasoning and sources';
-        cotTrigger.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14a2 2 0 110-4 2 2 0 010 4zm1-7h-2v5h2V9z" fill="currentColor"/></svg>';
-
-        cotTrigger.addEventListener('click', async () => {
-            // If dropdown exists, toggle visibility
-            let dropdown = contentWrapper.querySelector('.reasoning-dropdown');
-            if (dropdown) {
-                const isOpen = dropdown.classList.toggle('open');
-                return;
-            }
-
-            // Create placeholder dropdown while loading
-            dropdown = document.createElement('div');
-            dropdown.className = 'reasoning-dropdown';
-            dropdown.innerHTML = '<div class="rd-header"><div class="rd-tab active">Reasoning</div><div class="rd-tab">Sources</div></div><div class="rd-body">Loading...</div>';
-            contentWrapper.appendChild(dropdown);
-            requestAnimationFrame(() => dropdown.classList.add('open'));
-
-            try {
-                const res = await fetch(apiUrl('/api/chat'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: opts.userMessage || '', session_id: activeSession, explain: true })
-                });
-                const d = await res.json();
-                let parsed = d.explain || d;
-
-                // Build full dropdown content
-                dropdown.innerHTML = '';
-                const header = document.createElement('div'); header.className = 'rd-header';
-                const tabReason = document.createElement('div'); tabReason.className = 'rd-tab active'; tabReason.textContent = 'Reasoning';
-                const tabSources = document.createElement('div'); tabSources.className = 'rd-tab'; tabSources.textContent = 'Sources';
-                header.appendChild(tabReason); header.appendChild(tabSources);
-
-                const bodyDiv = document.createElement('div'); bodyDiv.className = 'rd-body';
-                const reasoningBlock = document.createElement('div'); reasoningBlock.className = 'rd-reasoning';
-                const sourcesBlock = document.createElement('div'); sourcesBlock.className = 'rd-sources'; sourcesBlock.style.display = 'none';
-
-                if (parsed) {
-                    reasoningBlock.textContent = parsed.chain_of_thought || parsed.raw || 'No reasoning available.';
-                    if (parsed.sources && Array.isArray(parsed.sources) && parsed.sources.length) {
-                        parsed.sources.forEach(s => {
-                            const sitem = document.createElement('div');
-                            sitem.className = 'rd-source-item';
-                            if (typeof s === 'object') {
-                                sitem.innerHTML = `<strong>${s.id ? '['+s.id+'] ' : ''}${s.title || ''}</strong><div style="font-size:0.9rem;color:var(--link-color);margin-top:6px">${(s.snippet||'').slice(0,300)}</div>`;
-                            } else {
-                                sitem.textContent = s;
-                            }
-                            sourcesBlock.appendChild(sitem);
-                        });
-                    } else {
-                        sourcesBlock.textContent = 'No sources available.';
-                    }
-                } else {
-                    reasoningBlock.textContent = 'No explanation available.';
-                    sourcesBlock.textContent = 'No sources available.';
-                }
-
-                bodyDiv.appendChild(reasoningBlock);
-                bodyDiv.appendChild(sourcesBlock);
-                dropdown.appendChild(header);
-                dropdown.appendChild(bodyDiv);
-
-                // tab switching
-                tabReason.addEventListener('click', () => { tabReason.classList.add('active'); tabSources.classList.remove('active'); reasoningBlock.style.display='block'; sourcesBlock.style.display='none'; });
-                tabSources.addEventListener('click', () => { tabSources.classList.add('active'); tabReason.classList.remove('active'); reasoningBlock.style.display='none'; sourcesBlock.style.display='block'; });
-
-            } catch (e) {
-                console.error('Explain error', e);
-                dropdown.querySelector('.rd-body').textContent = 'Failed to load explanation.';
-            }
-        });
-
-        contentWrapper.appendChild(cotTrigger);
-    }
-
-    chatHistory.appendChild(msgDiv);
-    chatHistory.scrollTop = chatHistory.scrollHeight;
-    return msgDiv; // return the element for progressive updates
-}
-
-async function startNewChat() {
-    activeSession = null;
-    chatHistory.innerHTML = '';
-    body.classList.add('chat-started');
-    await renderChatList();
-}
-
-// Fallback fetch-based streaming implementation used when EventSource is unavailable
-async function handleFetchStreamFallback(userMessage, assistantEl, contentEl) {
-    try {
-        const res = await fetch(apiUrl('/api/chat/stream'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: userMessage, session_id: activeSession })
-        });
-
-        if (!res.ok) {
-            const errorBody = await res.text();
-            throw new Error(errorBody || 'Stream request failed');
-        }
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let done = false;
-        let buffer = '';
-        while (!done) {
-            const { value, done: d } = await reader.read();
-            done = d;
-            if (value) {
-                buffer += decoder.decode(value, { stream: true });
-                const parts = buffer.split('\n\n');
-                buffer = parts.pop();
-                for (const part of parts) {
-                    const line = part.replace(/^data:\s*/i, '');
-                    contentEl.textContent += line;
-                    chatHistory.scrollTop = chatHistory.scrollHeight;
-                }
-            }
-        }
-
-        // After stream completes, request explanation similarly
-        try {
-            const explainRes = await fetch(apiUrl('/api/chat'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: userMessage, session_id: activeSession, explain: true })
-            });
-            if (explainRes.ok) {
-                const explainData = await explainRes.json();
-                const parsed = explainData.explain || explainData;
-                const detailsDiv = document.createElement('div');
-                detailsDiv.className = 'message-details';
-                if (parsed) {
-                    if (parsed.chain_of_thought) {
-                        const h = document.createElement('div');
-                        h.className = 'cot-block';
-                        h.textContent = parsed.chain_of_thought;
-                        detailsDiv.appendChild(h);
-                    }
-                    if (parsed.sources && Array.isArray(parsed.sources)) {
-                        const s = document.createElement('div');
-                        s.className = 'cot-sources';
-                        const ul = document.createElement('ul');
-                        parsed.sources.forEach(src => {
-                            const li = document.createElement('li');
-                            li.textContent = `${src.id || ''} — ${src.title || ''} — ${src.snippet || ''}`;
-                            ul.appendChild(li);
-                        });
-                        s.appendChild(ul);
-                        detailsDiv.appendChild(s);
-                    }
-                }
-                assistantEl.appendChild(detailsDiv);
-            }
-        } catch (e) {
-            console.warn('Explain failed after fetch stream', e);
-        }
-    } catch (e) {
-        console.error('Fetch stream fallback failed', e);
-        contentEl.textContent = 'Error: streaming failed.';
-    }
-}
-
-// Function to send message to backend and handle response
-async function handleUserMessage(userMessage) {
-    body.classList.add('chat-started');
-    sendMessage(userMessage, true);
-    try {
-        if (STREAM_MODE) {
-            // Use EventSource-based SSE flow: POST to /chat/stream/start to get a stream_id,
-            // then open EventSource at /chat/stream/{stream_id} to receive tokens.
-            const assistantEl = sendMessage('', false, { userMessage });
-            assistantEl.classList.add('typing');
-            const contentEl = assistantEl.querySelector('.message-content');
-            const avatarEl = assistantEl.querySelector('.message-avatar');
-            // add typing indicator near avatar
-            const typingIndicator = document.createElement('span');
-            typingIndicator.className = 'typing-indicator';
-            typingIndicator.innerHTML = '<span></span><span></span><span></span>';
-            avatarEl.appendChild(typingIndicator);
-
-            // show a small spinner while stream starts
-            const spinner = document.createElement('span');
-            spinner.className = 'spinner';
-            avatarEl.appendChild(spinner);
-
-            // Start the stream and obtain id
-            const startRes = await fetch(apiUrl('/api/chat/stream/start'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: userMessage, session_id: activeSession })
-            });
-            if (!startRes.ok) {
-                // fallback to legacy fetch streaming endpoint
-                console.warn('Stream start failed; falling back to fetch streaming');
-                return await handleFetchStreamFallback(userMessage, assistantEl, contentEl);
-            }
-
-            const startData = await startRes.json();
-            if (startData.session_id) activeSession = startData.session_id;
-            const streamId = startData.stream_id;
-            const sseUrl = apiUrl(`/api/chat/stream/${streamId}`);
-
-            if (window.EventSource) {
-                const es = new EventSource(sseUrl);
-                es.onmessage = (evt) => {
-                    // default message events carry token chunks
-                    // remove spinner on first token
-                    if (spinner && spinner.parentNode) spinner.remove();
-                    contentEl.textContent += evt.data;
-                    chatHistory.scrollTop = chatHistory.scrollHeight;
-                };
-                es.addEventListener('done', (evt) => {
-                    try {
-                        const payload = JSON.parse(evt.data);
-                        // payload.response contains the full assembled response
-                        contentEl.textContent = payload.response;
-                        chatHistory.scrollTop = chatHistory.scrollHeight;
-                    } catch (e) {
-                        console.warn('Invalid done payload', e);
-                    }
-                    // cleanup typing indicator
-                    assistantEl.classList.remove('typing');
-                    const ti = avatarEl.querySelector('.typing-indicator'); if (ti) ti.remove();
-                    if (spinner && spinner.parentNode) spinner.remove();
-                    es.close();
-                    // Optionally fetch explanation (structured sources)
-                    fetch(apiUrl('/api/chat'), {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: userMessage, session_id: activeSession, explain: true })
-                    }).then(r => r.ok ? r.json() : null).then(d => {
-                        if (!d) return;
-                        const parsed = d.explain || d;
-                        const detailsDiv = document.createElement('div');
-                        detailsDiv.className = 'message-details';
-                        if (parsed) {
-                            if (parsed.chain_of_thought) {
-                                const h = document.createElement('div');
-                                h.className = 'cot-block';
-                                h.textContent = parsed.chain_of_thought;
-                                detailsDiv.appendChild(h);
-                            }
-                            if (parsed.sources && Array.isArray(parsed.sources)) {
-                                const s = document.createElement('div');
-                                s.className = 'cot-sources';
-                                const ul = document.createElement('ul');
-                                parsed.sources.forEach(src => {
-                                    const li = document.createElement('li');
-                                    li.textContent = `${src.id || ''} — ${src.title || ''} — ${src.snippet || ''}`;
-                                    ul.appendChild(li);
-                                });
-                                s.appendChild(ul);
-                                detailsDiv.appendChild(s);
-                            }
-                        }
-                        assistantEl.appendChild(detailsDiv);
-                    }).catch(e => console.warn('Explain fetch failed', e));
-                });
-                es.onerror = (e) => {
-                    console.error('SSE error', e);
-                    assistantEl.classList.remove('typing');
-                    const ti = avatarEl.querySelector('.typing-indicator'); if (ti) ti.remove();
-                    if (spinner && spinner.parentNode) spinner.remove();
-                    es.close();
-                };
-            } else {
-                // Browser doesn't support EventSource; fallback to fetch stream
-                await handleFetchStreamFallback(userMessage, assistantEl, contentEl);
-            }
-
-            await renderChatList();
+    
+    // Set Avatar Content
+    if (role === 'user') {
+        if (state.user && state.user.avatar_url) {
+            avatar.innerHTML = `<img src="${state.user.avatar_url}" style="width:100%;height:100%;border-radius:6px;">`;
         } else {
-            const res = await fetch(apiUrl("/api/chat"), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: userMessage, session_id: activeSession })
-            });
-            const data = await res.json();
-            if (!res.ok) {
-                throw new Error(data.error || 'Chat request failed');
-            }
-            if (data.session_id) {
-                activeSession = data.session_id;
-            }
-            sendMessage(data.response, false, { userMessage });
-            await renderChatList();
+            avatar.textContent = 'You';
         }
-    } catch (err) {
-        console.error(err);
-        sendMessage('Error: Could not connect to backend.', false);
+    } else {
+        avatar.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/></svg>';
     }
+
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble';
+    bubble.textContent = text;
+    if (isLoading) bubble.classList.add('typing-indicator');
+
+    div.appendChild(avatar);
+    div.appendChild(bubble);
+    
+    elements.chatHistory.appendChild(div);
+    elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight;
+    
+    return id;
 }
 
-// Initial prompt input (first message)
-initialPromptInput.addEventListener('keyup', function(event) {
-    if (event.key === 'Enter' && initialPromptInput.value.trim() !== '') {
-        const userMessage = initialPromptInput.value.trim();
-        body.classList.add('chat-started');
-        initialPromptInput.value = '';
-        handleUserMessage(userMessage);
-    }
-});
-
-// Main chat input (subsequent messages)
-promptInput.addEventListener('keyup', function(event) {
-    if (event.key === 'Enter' && promptInput.value.trim() !== '') {
-        const userMessage = promptInput.value.trim();
-        promptInput.value = '';
-        handleUserMessage(userMessage);
-    }
-});
-
-// Fetch one chat’s history
-async function openChat(sessionId) {
-    activeSession = sessionId;
-    let res = await fetch(apiUrl(`/api/chats/${sessionId}`));
-    if (!res.ok) return;
-    let chat = await res.json();
-
-    chatHistory.innerHTML = "";
-    body.classList.add('chat-started');
-    chat.messages.forEach(msg => {
-        sendMessage(msg.text, msg.role === "user");
-    });
-
-    await renderChatList();
+function startNewChat() {
+    state.activeSession = null;
+    elements.chatHistory.innerHTML = '';
+    elements.app.classList.remove('chat-active');
+    // Deselect active sidebar items
+    document.querySelectorAll('.chats-list-item').forEach(el => el.classList.remove('active'));
 }
 
-// Fetch all chats for sidebar
-async function renderChatList() {
+async function loadChats() {
     try {
-        let res = await fetch(apiUrl("/api/chats"));
+        const res = await fetch(`${API_BASE}/api/chats`);
         if (!res.ok) return;
-        let sessions = await res.json();
-        chatsList.innerHTML = "";
-        sessions.forEach(sess => {
-            let li = document.createElement("li");
-            li.className = "chats-list-item";
-            if (sess.session_id === activeSession) li.classList.add("active");
-            li.onclick = () => openChat(sess.session_id);
-
-            // small icon + title layout
-            const icon = document.createElement('div');
-            icon.className = 'chat-icon';
-            icon.textContent = sess.title ? sess.title.charAt(0).toUpperCase() : 'C';
-            const title = document.createElement('div');
-            title.className = 'chat-title';
-            title.textContent = sess.title;
-
-            li.appendChild(icon);
-            li.appendChild(title);
-            chatsList.appendChild(li);
+        const chats = await res.json();
+        const list = document.getElementById('chats-list');
+        list.innerHTML = '';
+        
+        chats.forEach(chat => {
+            const li = document.createElement('li');
+            li.className = `chats-list-item ${chat.session_id === state.activeSession ? 'active' : ''}`;
+            li.innerHTML = `
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span>${chat.title || 'New Consultation'}</span>
+            `;
+            li.onclick = () => loadSession(chat.session_id);
+            list.appendChild(li);
         });
-
-        // apply search filter if present
-        if (sidebarSearch && sidebarSearch.value.trim()) {
-            const q = sidebarSearch.value.trim().toLowerCase();
-            Array.from(chatsList.children).forEach(li => {
-                const t = (li.querySelector('.chat-title')?.textContent || '').toLowerCase();
-                li.style.display = t.includes(q) ? '' : 'none';
-            });
-        }
-    } catch (err) {
-        console.error("Unable to load chats", err);
-    }
+    } catch (e) { console.warn('Load chats failed', e); }
 }
 
-if (sidebarSearch) {
-    sidebarSearch.addEventListener('input', () => renderChatList());
+async function loadSession(id) {
+    state.activeSession = id;
+    elements.app.classList.add('chat-active');
+    loadChats(); // Update active state in sidebar
+    
+    const res = await fetch(`${API_BASE}/api/chats/${id}`);
+    const data = await res.json();
+    
+    elements.chatHistory.innerHTML = '';
+    data.messages.forEach(msg => appendMessage(msg.text, msg.role === 'user' ? 'user' : 'bot'));
 }
 
-renderChatList();
-// Initialize authentication state (loads current user if token present)
-initAuth();
-
-// Sidebar action handlers
-const saveBtn = document.getElementById('save-chat');
-const exportBtn = document.getElementById('export-chat');
-const importBtn = document.getElementById('import-chat');
-const clearBtn = document.getElementById('clear-history');
-
-if (saveBtn) {
-    saveBtn.addEventListener('click', async () => {
-        const title = prompt('Enter chat title:') || 'Saved chat';
-        const res = await fetch(apiUrl('/api/chats'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, message: '' })
+/* --- Auth Logic --- */
+async function initAuth() {
+    if (!state.authToken) return updateAuthUI(false);
+    
+    try {
+        const res = await fetch(`${API_BASE}/api/auth/me`, {
+            headers: { 'Authorization': `Bearer ${state.authToken}` }
         });
         if (res.ok) {
-            const d = await res.json();
-            alert('Saved as session ' + d.session_id);
-            await renderChatList();
+            const data = await res.json();
+            state.user = data.user;
+            updateAuthUI(true);
         } else {
-            alert('Save failed');
+            handleLogout();
         }
-    });
+    } catch (e) { handleLogout(); }
 }
 
-if (exportBtn) {
-    exportBtn.addEventListener('click', async () => {
-        if (!activeSession) return alert('Open a chat to export.');
-        const res = await fetch(apiUrl(`/api/chats/${activeSession}`));
-        if (!res.ok) return alert('Unable to fetch session');
+function updateAuthUI(isLoggedIn) {
+    const loginBtn = document.getElementById('login-btn');
+    const profileTrigger = document.querySelector('.user-profile');
+    
+    if (isLoggedIn && state.user) {
+        loginBtn.classList.add('hidden');
+        profileTrigger.classList.remove('hidden');
+        document.getElementById('header-user-name').textContent = state.user.display_name || state.user.username;
+        if (state.user.avatar_url) {
+            document.getElementById('header-user-avatar').src = state.user.avatar_url;
+        }
+    } else {
+        loginBtn.classList.remove('hidden');
+        profileTrigger.classList.add('hidden');
+    }
+}
+
+async function handleLogin() {
+    const u = document.getElementById('login-username').value;
+    const p = document.getElementById('login-password').value;
+    
+    try {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: u, password: p })
+        });
+        
         const data = await res.json();
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${data.title || 'chat'}.json`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-    });
-}
-
-if (importBtn) {
-    importBtn.addEventListener('click', () => {
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.json';
-        fileInput.onchange = async (e) => {
-            const f = e.target.files[0];
-            if (!f) return;
-            const text = await f.text();
-            try {
-                const obj = JSON.parse(text);
-                // Render locally as a new chat (no server persistence)
-                activeSession = null;
-                chatHistory.innerHTML = '';
-                body.classList.add('chat-started');
-                (obj.messages || []).forEach(m => sendMessage(m.text || m.content || '', m.role === 'user'));
-                await renderChatList();
-            } catch (err) {
-                alert('Invalid JSON');
-            }
-        };
-        fileInput.click();
-    });
-}
-
-if (clearBtn) {
-    clearBtn.addEventListener('click', () => {
-        if (confirm('Clear chat view? This does not delete server sessions.')) {
-            activeSession = null;
-            chatHistory.innerHTML = '';
-            renderChatList();
-        }
-    });
-}
-
-// ----------------------------
-// Agent Logs modal + SSE client
-// ----------------------------
-let agentEventSource = null;
-const AGENT_LOG_LIMIT = 2000;
-let agentUserInteracting = false;
-let agentAutoScrollPaused = false;
-const seenAgentActions = new Set();
-const filterState = { action: 'all', search: '' };
-
-function appendAgentLog(obj) {
-    try {
-        const container = document.getElementById('agent-log-container');
-        if (!container) return;
-        const el = document.createElement('div');
-        el.style.padding = '6px 0';
-        el.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
-        const ts = obj.ts || new Date().toISOString();
-        const action = (obj.action || obj.type || '').toString();
-        const pre = document.createElement('pre');
-        pre.style.margin = '0';
-        pre.style.whiteSpace = 'pre-wrap';
-        pre.style.wordBreak = 'break-word';
-        pre.textContent = `[${ts}] ${action}  ${JSON.stringify(obj, null, 0)}`;
-        el.appendChild(pre);
-        // set action data for filtering
-        el.dataset.action = action || '';
-        // maintain seen actions and populate filter select
-        if (action && !seenAgentActions.has(action)) {
-            seenAgentActions.add(action);
-            const sel = document.getElementById('agent-filter-select');
-            if (sel) {
-                const opt = document.createElement('option'); opt.value = action; opt.textContent = action; sel.appendChild(opt);
-            }
-        }
-        container.appendChild(el);
-        // limit size
-        while (container.children.length > AGENT_LOG_LIMIT) container.removeChild(container.firstChild);
-        // auto-scroll only when user is not interacting and near the bottom
-        const nearBottom = (container.scrollHeight - container.clientHeight - container.scrollTop) < 100;
-        if (!agentUserInteracting && nearBottom && !agentAutoScrollPaused) {
-            container.scrollTop = container.scrollHeight;
-        }
-    } catch (e) { console.warn('appendAgentLog failed', e); }
-}
-
-function connectAgentStream() {
-    disconnectAgentStream();
-    try {
-        const src = apiUrl('/api/agent/stream');
-        agentEventSource = new EventSource(src);
-        agentEventSource.onmessage = (e) => {
-            try {
-                const obj = JSON.parse(e.data);
-                appendAgentLog(obj);
-            } catch (err) {
-                appendAgentLog({ ts: new Date().toISOString(), action: 'raw', raw: e.data });
-            }
-        };
-        agentEventSource.onerror = (e) => {
-            appendAgentLog({ ts: new Date().toISOString(), action: 'sse_error', error: String(e) });
-        };
-        appendAgentLog({ ts: new Date().toISOString(), action: 'stream_connected', status: 'ok' });
-    } catch (err) {
-        appendAgentLog({ ts: new Date().toISOString(), action: 'stream_failed', error: String(err) });
-    }
-}
-
-function disconnectAgentStream() {
-    if (agentEventSource) {
-        try { agentEventSource.close(); } catch (e) {}
-        agentEventSource = null;
-        const container = document.getElementById('agent-log-container');
-        if (container) appendAgentLog({ ts: new Date().toISOString(), action: 'stream_disconnected' });
-    }
-}
-
-async function startAgent() {
-    try {
-        const res = await fetch(apiUrl('/api/agent/run'), { method: 'POST' });
-        const d = await res.json().catch(()=>({}));
-        appendAgentLog({ ts: new Date().toISOString(), action: 'start_requested', status: res.status, response: d });
-        if (res.ok) connectAgentStream();
-    } catch (e) { appendAgentLog({ ts: new Date().toISOString(), action: 'start_error', error: String(e) }); }
-}
-
-async function stopAgent() {
-    try {
-        const res = await fetch(apiUrl('/api/agent/stop'), { method: 'POST' });
-        const d = await res.json().catch(()=>({}));
-        appendAgentLog({ ts: new Date().toISOString(), action: 'stop_requested', status: res.status, response: d });
-        disconnectAgentStream();
-    } catch (e) { appendAgentLog({ ts: new Date().toISOString(), action: 'stop_error', error: String(e) }); }
-}
-
-function clearAgentView() {
-    const container = document.getElementById('agent-log-container');
-    if (container) container.innerHTML = '';
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    const openBtn = document.getElementById('agent-logs-btn');
-    const modal = document.getElementById('agent-modal-overlay');
-    const closeBtn = document.getElementById('agent-modal-close');
-    const startBtn = document.getElementById('agent-start');
-    const stopBtn = document.getElementById('agent-stop');
-    const clearBtnAgent = document.getElementById('agent-clear');
-
-    async function openAgentModal() {
-        modal.classList.remove('hidden');
-        await loadAgentHistory();
-        connectAgentStream();
-    }
-    if (openBtn && modal) openBtn.addEventListener('click', openAgentModal);
-    if (closeBtn && modal) closeBtn.addEventListener('click', () => { modal.classList.add('hidden'); disconnectAgentStream(); });
-    if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) { modal.classList.add('hidden'); disconnectAgentStream(); } });
-    if (startBtn) startBtn.addEventListener('click', startAgent);
-    if (stopBtn) stopBtn.addEventListener('click', stopAgent);
-    if (clearBtnAgent) clearBtnAgent.addEventListener('click', clearAgentView);
-    // container interaction handling to avoid aggressive auto-scroll causing flicker
-    const container = document.getElementById('agent-log-container');
-    if (container) {
-        container.addEventListener('mouseenter', () => { agentUserInteracting = true; });
-        container.addEventListener('mouseleave', () => { agentUserInteracting = false; });
-        container.addEventListener('scroll', () => {
-            const nearBottom = (container.scrollHeight - container.clientHeight - container.scrollTop) < 100;
-            agentUserInteracting = !nearBottom;
-        });
-    }
-    // pause / follow / filters
-    const pauseChk = document.getElementById('agent-pause-autoscroll');
-    const followBtn = document.getElementById('agent-follow');
-    const filterSel = document.getElementById('agent-filter-select');
-    const searchInput = document.getElementById('agent-search-input');
-    if (pauseChk) pauseChk.addEventListener('change', (e) => { agentAutoScrollPaused = !!e.target.checked; });
-    if (followBtn) followBtn.addEventListener('click', () => {
-        agentAutoScrollPaused = false; if (pauseChk) pauseChk.checked = false; if (container) container.scrollTop = container.scrollHeight; appendAgentLog({ ts: new Date().toISOString(), action: 'follow_clicked' });
-    });
-    if (filterSel) filterSel.addEventListener('change', (e) => { filterState.action = e.target.value; applyFiltersToExisting(); });
-    if (searchInput) {
-        let deb = null;
-        searchInput.addEventListener('input', (e) => {
-            clearTimeout(deb);
-            deb = setTimeout(() => { filterState.search = e.target.value.trim().toLowerCase(); applyFiltersToExisting(); }, 250);
-        });
-    }
-});
-
-// Fetch last logs from server and render into modal
-async function loadAgentHistory() {
-    try {
-        const res = await fetch(apiUrl('/api/agent/logs'));
-        if (!res.ok) return;
-        const arr = await res.json();
-        const container = document.getElementById('agent-log-container');
-        if (!container) return;
-        container.innerHTML = '';
-        // arr is list of log objects (recent last)
-        arr.forEach(obj => appendAgentLog(obj));
-        // apply current filters after loading
-        applyFiltersToExisting();
+        if (!res.ok) throw new Error(data.error);
+        
+        state.authToken = data.token;
+        state.refreshToken = data.refresh_token;
+        state.user = data.user;
+        
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('refreshToken', data.refresh_token);
+        
+        updateAuthUI(true);
+        hideModals();
+        showToast('Successfully logged in', 'success');
+        
     } catch (e) {
-        appendAgentLog({ ts: new Date().toISOString(), action: 'history_load_error', error: String(e) });
+        showToast(e.message, 'error');
     }
 }
 
-function applyFiltersToExisting() {
-    const container = document.getElementById('agent-log-container');
-    if (!container) return;
-    const items = Array.from(container.children);
-    items.forEach(it => {
-        const action = (it.dataset.action || '').toLowerCase();
-        const text = it.textContent.toLowerCase();
-        const actionMatch = (filterState.action === 'all') || (action === filterState.action.toLowerCase());
-        const searchMatch = !filterState.search || text.includes(filterState.search);
-        it.style.display = (actionMatch && searchMatch) ? '' : 'none';
+function handleLogout() {
+    state.authToken = null;
+    state.user = null;
+    localStorage.removeItem('authToken');
+    updateAuthUI(false);
+    showToast('Logged out');
+    showView('chat'); // Reset to main view
+}
+
+/* --- Modal Helpers --- */
+function showModal(name, subType) {
+    elements.modals.overlay.classList.remove('hidden');
+    // hide all cards first
+    Object.values(elements.modals).forEach(el => {
+        if(el && el !== elements.modals.overlay) el.classList.add('hidden');
     });
+    
+    // show specific card
+    if (elements.modals[name]) elements.modals[name].classList.remove('hidden');
+
+    if (name === 'auth') toggleAuthMode(subType || 'login');
+}
+
+function hideModals() {
+    elements.modals.overlay.classList.add('hidden');
+}
+
+function toggleAuthMode(mode) {
+    const loginForm = document.getElementById('login-form');
+    const regForm = document.getElementById('register-form');
+    if (mode === 'login') {
+        loginForm.classList.remove('hidden');
+        regForm.classList.add('hidden');
+    } else {
+        loginForm.classList.add('hidden');
+        regForm.classList.remove('hidden');
+    }
+}
+
+/* --- File Upload --- */
+function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    showToast(`Uploaded: ${file.name}`, 'success');
+    // Add logic here to actually send file to backend
+    // For now, simulating user message
+    appendMessage(`[Uploaded Document: ${file.name}]`, 'user');
+    elements.app.classList.add('chat-active');
 }
