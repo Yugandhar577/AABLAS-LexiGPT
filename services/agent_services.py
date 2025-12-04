@@ -20,12 +20,19 @@ from services.ollama_services import llm_chat
 from rag.retriever import Retriever
 from services.docgen_services import generate_document
 from utils.prompts import PLANNER_SYS_PROMPT, EVALUATOR_SYS_PROMPT
+from utils.file_utils import resolve_uploaded_file_path
 
 # Tool registry: name -> callable
 # Each tool receives a dict input and returns {"ok": bool, "output": Any, "logs": str}
 def _tool_read_file(args: Dict[str, Any]) -> Dict[str, Any]:
     path = args.get("path")
     try:
+        # Try to resolve uploaded file if path looks like just a filename
+        if path and "/" not in path and "\\" not in path:
+            resolved = resolve_uploaded_file_path(path)
+            if resolved:
+                path = resolved
+        
         with open(path, "r", encoding="utf-8", errors="ignore") as f:
             txt = f.read()
         return {"ok": True, "output": txt, "logs": f"read {len(txt)} chars"}
@@ -90,6 +97,117 @@ def _tool_rag_search(args: Dict[str, Any]) -> Dict[str, Any]:
     return {"ok": True, "output": serialised, "logs": f"returned {len(hits)} hits"}
 
 
+def _tool_summarize_text(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Summarize a piece of text or a local file.
+    Accepts either `{"text": "..."}` or `{"path": "path/to/file"}`.
+    Returns a concise summary string produced by the LLM.
+    """
+    try:
+        text = args.get("text")
+        path = args.get("path")
+        if not text and path:
+            # Reuse read_file tool to load content
+            r = _tool_read_file({"path": path})
+            if not r.get("ok"):
+                return {"ok": False, "output": None, "logs": r.get("logs")}
+            text = r.get("output")
+
+        if not text:
+            return {"ok": False, "output": None, "logs": "no text or path provided"}
+
+        prompt = (
+            "Summarize the following text into a clear, concise, and structured summary. "
+            "Include headings and bullet points where appropriate. Return plain text only.\n\n"
+            + text
+        )
+        summary = llm_chat(None, prompt)
+        return {"ok": True, "output": summary, "logs": f"summary length {len(summary) if summary else 0}"}
+    except Exception as e:
+        return {"ok": False, "output": None, "logs": str(e)}
+
+
+def _tool_synthesize_with_rag(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Run a RAG search and synthesize an answer that cites sources.
+    Expects `{"query": "...", "top_k": 3}` and returns {answer, sources}.
+    """
+    try:
+        query = args.get("query") or args.get("question") or ""
+        top_k = int(args.get("top_k", 3))
+        session_id = args.get("session_id")
+        hits = RETRIEVER.search(query, top_k=top_k, session_id=session_id)
+        serialised = [hit.__dict__ for hit in hits]
+
+        # Build a compact context block for the LLM
+        context_parts = []
+        for i, h in enumerate(serialised):
+            title = h.get("title") or h.get("id") or f"doc_{i+1}"
+            snippet = h.get("snippet") or h.get("text") or ""
+            context_parts.append(f"[{i+1}] {title}\n{snippet}")
+        context = "\n\n".join(context_parts)
+
+        prompt = (
+            "Using the context documents below, answer the question concisely and include inline citations like [1], [2].\n\n"
+            f"Question: {query}\n\nContext:\n{context}\n\nAnswer:"
+        )
+        answer = llm_chat(None, prompt)
+        return {"ok": True, "output": {"answer": answer, "sources": serialised}, "logs": f"returned {len(serialised)} sources"}
+    except Exception as e:
+        return {"ok": False, "output": None, "logs": str(e)}
+
+
+def _tool_vector_index(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Index documents into the vector database for RAG ingestion.
+    Accepts either:
+    - {"path": "path/to/file.pdf"} to index a single file,
+    - {"paths": ["file1.pdf", "file2.txt"]} to index multiple files,
+    - {"text": "raw text content", "title": "optional title"} to index raw text.
+    Returns {"ok": bool, "output": {"indexed_chunks": int}, "logs": str}.
+    """
+    try:
+        path = args.get("path")
+        paths = args.get("paths") or []
+        text = args.get("text")
+        title = args.get("title", "indexed_document")
+        session_id = args.get("session_id")
+
+        indexed_total = 0
+        logs = []
+
+        # Index file(s) if provided
+        if path:
+            paths = [path]
+        for file_path in paths:
+            try:
+                # Try to resolve uploaded file if path looks like just a filename
+                if file_path and "/" not in file_path and "\\" not in file_path:
+                    resolved = resolve_uploaded_file_path(file_path)
+                    if resolved:
+                        file_path = resolved
+                
+                result = RETRIEVER.vdb.process_and_embed_document(file_path, session_id=session_id)
+                indexed_total += result.get("inserted_chunks", 0)
+                logs.append(f"indexed {file_path}: {result.get('inserted_chunks', 0)} chunks")
+            except Exception as e:
+                logs.append(f"failed to index {file_path}: {str(e)}")
+
+        # Index raw text if provided
+        if text:
+            try:
+                doc = {"content": text, "title": title, "metadata": {"source": title} | ({"session_id": session_id} if session_id else {})}
+                RETRIEVER.vdb.add([doc])
+                indexed_total += 1
+                logs.append(f"indexed raw text: {title}")
+            except Exception as e:
+                logs.append(f"failed to index raw text: {str(e)}")
+
+        if indexed_total == 0:
+            return {"ok": False, "output": None, "logs": "no documents indexed"}
+
+        return {"ok": True, "output": {"indexed_chunks": indexed_total}, "logs": " | ".join(logs)}
+    except Exception as e:
+        return {"ok": False, "output": None, "logs": str(e)}
+
+
 def _tool_doc_generate(args: Dict[str, Any]) -> Dict[str, Any]:
     try:
         # args is either: (1) a dict with "payload"/"doc_payload" key, or (2) the payload itself with type/content
@@ -130,6 +248,9 @@ TOOL_MAP = {
     "regex_extract": _tool_regex_extract,
     "rag_search": _tool_rag_search,
     "doc_generate": _tool_doc_generate,
+    "summarize_text": _tool_summarize_text,
+    "synthesize_rag": _tool_synthesize_with_rag,
+    "vector_index": _tool_vector_index,
 }
 
 
@@ -338,8 +459,14 @@ def execute_plan(plan: Plan) -> RunResult:
                     output_preview="(no external action)",
                 )
             )
-            # Emit reasoning event
-            emit_event({"type": "reason", "step_id": step.step_id, "title": step.title, "timestamp": int(time.time())})
+            # Emit reasoning event with additional context
+            emit_event({
+                "type": "reason",
+                "step_id": step.step_id,
+                "title": step.title,
+                "expectations": step.expectations or "",
+                "timestamp": int(time.time())
+            })
             continue
 
         # If this is a doc generation step, ensure required data is present.

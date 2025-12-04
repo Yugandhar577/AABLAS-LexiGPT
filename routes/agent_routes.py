@@ -214,3 +214,43 @@ def generate_document_route():
         return jsonify(out)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/summarize", methods=["POST"])
+def summarize_route():
+    """
+    POST JSON: { "request": "Summarize the contract", "file_path": "path/to/file" (optional), "text": "raw text" (optional) }
+    
+    This endpoint accepts a summarization request and routes it to the agent planner,
+    which will read the file or text and produce a concise, structured summary.
+    Returns: the full plan+run result including agent logs and summary output.
+    """
+    data = request.get_json(force=True) or {}
+    user_request = data.get("request", "").strip()
+    file_path = data.get("file_path", "").strip()
+    text = data.get("text", "").strip()
+
+    if not user_request and not file_path and not text:
+        return jsonify({"error": "no request, file_path, or text provided"}), 400
+
+    try:
+        # Build context for the agent
+        context = ""
+        if file_path:
+            context += f"File to analyze: {file_path}\n"
+        if text:
+            context += f"Text to summarize:\n{text[:500]}...\n"
+
+        # Transform into an agent goal
+        goal = (
+            f"You are a document summarization agent. The user's request: {user_request}\n\n"
+            f"{context}\n"
+            f"Plan the steps to read or receive the content, analyze it, and produce a clear, structured summary "
+            f"using the summarize_text tool. Include key points, clauses, or findings."
+        )
+
+        # Run the agent with the enriched goal
+        out = plan_and_run(goal)
+        return jsonify(out)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

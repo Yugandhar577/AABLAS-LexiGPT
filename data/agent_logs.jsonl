@@ -313,3 +313,125 @@
 {"type": "evaluation", "success": false, "summary": "Evaluator JSON parse failed. Raw: Here is the evaluation result:\n\n```\n{\n    \"success\": false,\n    \"summary\": \"Failed to generate PDF due to file not found error.\",\n    \"sources\": [\n        {\n            \"id\": 2,\n            \"title\": \"Get user input for document title and content\",\n            \"snippet\": \"[Errno 2] No such file or directory: 'user_input.txt'\"\n        }\n    ]\n}\n```\n\nThe plan failed to generate the PDF because step 2, which is supposed to get user input for the document title and content, encountered a file not found error.", "sources": [], "timestamp": 1764793541}
 {"type": "next_steps", "next_steps": ["Review generated PDF for accuracy", "Save the PDF to a designated location", "Share the PDF with relevant stakeholders"], "timestamp": 1764793541}
 {"type": "run_complete", "success": false, "summary": "Evaluator JSON parse failed. Raw: Here is the evaluation result:\n\n```\n{\n    \"success\": false,\n    \"summary\": \"Failed to generate PDF due to file not found error.\",\n    \"sources\": [\n        {\n            \"id\": 2,\n            \"title\": \"Get user input for document title and content\",\n            \"snippet\": \"[Errno 2] No such file or directory: 'user_input.txt'\"\n        }\n    ]\n}\n```\n\nThe plan failed to generate the PDF because step 2, which is supposed to get user input for the document title and content, encountered a file not found error.", "timestamp": 1764793541}
+{"type": "planner_output", "raw": "{\n  \"goal\": \"summarize the contents of that file\",\n  \"rationale\": \"\",\n  \"steps\": [\n    {\n      \"step_id\": 1,\n      \"title\": \"Read File\",\n      \"tool\": \"read_file\",\n      \"input\": {\"path\": \"file.txt\"},\n      \"expectations\": \"\"\n    },\n    {\n      \"step_id\": 2,\n      \"title\": \"Summarize Text\",\n      \"tool\": \"summarize_text\",\n      \"input\": {},\n      \"expectations\": \"\"\n    }\n  ],\n  \"success_criteria\": [\"summary generated\"],\n  \"max_iterations\": 2\n}\n\n{\n  \"next_steps\": [\n    \"Review the summary for accuracy and completeness\",\n    \"Refine the summary as needed to better capture the file's contents\",\n    \"Use the summarized information to inform further action or decision-making\"\n  ]\n}", "timestamp": 1764822814}
+{"type": "step_started", "step_id": 1, "title": "Read File", "tool": "read_file", "input": {"path": "file.txt"}, "timestamp": 1764822814}
+{"type": "step_result", "step_id": 1, "title": "Read File", "tool": "read_file", "ok": false, "logs": "[Errno 2] No such file or directory: 'file.txt'", "output_preview": "None", "timestamp": 1764822814}
+{"type": "step_started", "step_id": 2, "title": "Summarize Text", "tool": "summarize_text", "input": {}, "timestamp": 1764822814}
+{"type": "step_result", "step_id": 2, "title": "Summarize Text", "tool": "summarize_text", "ok": false, "logs": "no text or path provided", "output_preview": "None", "timestamp": 1764822814}
+{"type": "evaluation", "success": false, "summary": "", "sources": [], "timestamp": 1764822818}
+{"type": "next_steps", "next_steps": ["Review the plan and confirm inputs for goal: summarize the contents of that file", "Execute the plan steps and collect any outputs or artifacts.", "Summarize findings and produce the final deliverable (report or document)."], "timestamp": 1764822818}
+{"type": "run_complete", "success": false, "summary": "", "timestamp": 1764822818}
+{"ts": "2025-12-04T05:18:45.582155", "action": "agent_start", "status": "running"}
+{"ts": "2025-12-04T05:18:45.585780+00:00", "action": "decide", "reason": "rule-based: newer then larger", "candidates": ["data\\pdfs\\Yugandhar Resume V2.pdf", "data\\pdfs\\Right to information act.pdf", "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "data\\pdfs\\Legal Glossary Tri-Lingual.pdf", "data\\pdfs\\Insurance Regulatory and Development Authority Act, 1999.pdf", "data\\pdfs\\Information Technology Act, 2000.pdf", "data\\pdfs\\Indian Contract Act, 1872.pdf", "data\\pdfs\\Food Safety and Standards Act,.pdf", "data\\pdfs\\Consumer protection act.pdf", "data\\pdfs\\Chronological List of Central Acts.pdf", "data\\pdfs\\COI_2024.pdf"], "status": "planned"}
+{"ts": "2025-12-04T05:18:45.586399+00:00", "action": "process_start", "target": "data\\pdfs\\Yugandhar Resume V2.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-12-04T05:18:46.402366+00:00", "action": "extract_end", "target": "data\\pdfs\\Yugandhar Resume V2.pdf", "status": "completed", "duration": 0.82, "output_chars": 2763, "error": null}
+{"ts": "2025-12-04T05:18:46.403425+00:00", "action": "chunk_end", "target": "data\\pdfs\\Yugandhar Resume V2.pdf", "status": "completed", "duration": 0.0, "num_chunks": 4, "error": null}
+{"ts": "2025-12-04T05:18:50.948928+00:00", "action": "embed_batch", "batch_start": 0, "batch_size": 4, "total_chunks": 4, "status": "completed"}
+{"ts": "2025-12-04T05:18:50.949875+00:00", "action": "embed_end", "target": "data\\pdfs\\Yugandhar Resume V2.pdf", "status": "completed", "duration": 4.55, "num_embeddings": 4, "error": null}
+{"ts": "2025-12-04T05:18:51.045731+00:00", "action": "store_end", "target": "data\\pdfs\\Yugandhar Resume V2.pdf", "status": "completed", "duration": 0.1, "num_documents": 4, "error": null}
+{"ts": "2025-12-04T05:18:51.046387+00:00", "action": "process_end", "target": "data\\pdfs\\Yugandhar Resume V2.pdf", "status": "completed", "duration": 5.46}
+{"ts": "2025-12-04T05:18:51.046925+00:00", "action": "process_start", "target": "data\\pdfs\\Right to information act.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-12-04T05:18:53.472616+00:00", "action": "extract_end", "target": "data\\pdfs\\Right to information act.pdf", "status": "completed", "duration": 2.43, "output_chars": 69204, "error": null}
+{"ts": "2025-12-04T05:18:53.473603+00:00", "action": "chunk_end", "target": "data\\pdfs\\Right to information act.pdf", "status": "completed", "duration": 0.0, "num_chunks": 82, "error": null}
+{"ts": "2025-12-04T05:19:13.147602+00:00", "action": "embed_batch", "batch_start": 0, "batch_size": 32, "total_chunks": 82, "status": "completed"}
+{"ts": "2025-12-04T05:19:25.027534+00:00", "action": "embed_batch", "batch_start": 32, "batch_size": 32, "total_chunks": 82, "status": "completed"}
+{"ts": "2025-12-04T05:19:34.925471+00:00", "action": "embed_batch", "batch_start": 64, "batch_size": 18, "total_chunks": 82, "status": "completed"}
+{"ts": "2025-12-04T05:19:34.926316+00:00", "action": "embed_end", "target": "data\\pdfs\\Right to information act.pdf", "status": "completed", "duration": 41.45, "num_embeddings": 82, "error": null}
+{"ts": "2025-12-04T05:19:35.009806+00:00", "action": "store_end", "target": "data\\pdfs\\Right to information act.pdf", "status": "completed", "duration": 0.08, "num_documents": 82, "error": null}
+{"ts": "2025-12-04T05:19:35.010394+00:00", "action": "process_end", "target": "data\\pdfs\\Right to information act.pdf", "status": "completed", "duration": 43.96}
+{"ts": "2025-12-04T05:19:35.011361+00:00", "action": "process_start", "target": "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-12-04T05:19:38.169660+00:00", "action": "extract_end", "target": "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "status": "completed", "duration": 3.16, "output_chars": 129793, "error": null}
+{"ts": "2025-12-04T05:19:38.171174+00:00", "action": "chunk_end", "target": "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "status": "completed", "duration": 0.0, "num_chunks": 153, "error": null}
+{"ts": "2025-12-04T05:19:50.647308+00:00", "action": "embed_batch", "batch_start": 0, "batch_size": 32, "total_chunks": 153, "status": "completed"}
+{"ts": "2025-12-04T05:20:06.030370+00:00", "action": "embed_batch", "batch_start": 32, "batch_size": 32, "total_chunks": 153, "status": "completed"}
+{"ts": "2025-12-04T05:20:19.491290+00:00", "action": "embed_batch", "batch_start": 64, "batch_size": 32, "total_chunks": 153, "status": "completed"}
+{"ts": "2025-12-04T05:20:33.353713+00:00", "action": "embed_batch", "batch_start": 96, "batch_size": 32, "total_chunks": 153, "status": "completed"}
+{"ts": "2025-12-04T05:20:45.282631+00:00", "action": "embed_batch", "batch_start": 128, "batch_size": 25, "total_chunks": 153, "status": "completed"}
+{"ts": "2025-12-04T05:20:45.283665+00:00", "action": "embed_end", "target": "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "status": "completed", "duration": 67.11, "num_embeddings": 153, "error": null}
+{"ts": "2025-12-04T05:20:45.380358+00:00", "action": "store_end", "target": "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "status": "completed", "duration": 0.1, "num_documents": 153, "error": null}
+{"ts": "2025-12-04T05:20:45.381314+00:00", "action": "process_end", "target": "data\\pdfs\\Real Estate (Regulation and Development) Act, 2016 (RERA).pdf", "status": "completed", "duration": 70.37}
+{"ts": "2025-12-04T05:20:45.382945+00:00", "action": "process_start", "target": "data\\pdfs\\Legal Glossary Tri-Lingual.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-12-04T05:20:56.244997+00:00", "action": "extract_end", "target": "data\\pdfs\\Legal Glossary Tri-Lingual.pdf", "status": "completed", "duration": 10.86, "output_chars": 214424, "error": null}
+{"ts": "2025-12-04T05:20:56.246397+00:00", "action": "chunk_end", "target": "data\\pdfs\\Legal Glossary Tri-Lingual.pdf", "status": "completed", "duration": 0.0, "num_chunks": 253, "error": null}
+{"ts": "2025-12-04T05:21:24.816590+00:00", "action": "embed_batch", "batch_start": 0, "batch_size": 32, "total_chunks": 253, "status": "completed"}
+{"ts": "2025-12-04T05:21:51.869533+00:00", "action": "embed_batch", "batch_start": 32, "batch_size": 32, "total_chunks": 253, "status": "completed"}
+{"ts": "2025-12-04T05:22:20.960563+00:00", "action": "embed_batch", "batch_start": 64, "batch_size": 32, "total_chunks": 253, "status": "completed"}
+{"ts": "2025-12-04T05:22:48.837382+00:00", "action": "embed_batch", "batch_start": 96, "batch_size": 32, "total_chunks": 253, "status": "completed"}
+{"ts": "2025-12-04T05:23:16.853990+00:00", "action": "embed_batch", "batch_start": 128, "batch_size": 32, "total_chunks": 253, "status": "completed"}
+{"ts": "2025-12-04T05:23:46.743554+00:00", "action": "embed_batch", "batch_start": 160, "batch_size": 32, "total_chunks": 253, "status": "completed"}
+{"ts": "2025-12-04T05:24:19.481644+00:00", "action": "embed_batch", "batch_start": 192, "batch_size": 32, "total_chunks": 253, "status": "completed"}
+{"ts": "2025-12-04T05:24:48.892097+00:00", "action": "embed_batch", "batch_start": 224, "batch_size": 29, "total_chunks": 253, "status": "completed"}
+{"ts": "2025-12-04T05:24:48.893446+00:00", "action": "embed_end", "target": "data\\pdfs\\Legal Glossary Tri-Lingual.pdf", "status": "completed", "duration": 232.65, "num_embeddings": 253, "error": null}
+{"ts": "2025-12-04T05:24:49.067476+00:00", "action": "store_end", "target": "data\\pdfs\\Legal Glossary Tri-Lingual.pdf", "status": "completed", "duration": 0.17, "num_documents": 253, "error": null}
+{"ts": "2025-12-04T05:24:49.068451+00:00", "action": "process_end", "target": "data\\pdfs\\Legal Glossary Tri-Lingual.pdf", "status": "completed", "duration": 243.69}
+{"ts": "2025-12-04T05:24:49.071891+00:00", "action": "process_start", "target": "data\\pdfs\\Insurance Regulatory and Development Authority Act, 1999.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-12-04T05:24:51.994816+00:00", "action": "extract_end", "target": "data\\pdfs\\Insurance Regulatory and Development Authority Act, 1999.pdf", "status": "completed", "duration": 2.92, "output_chars": 84767, "error": null}
+{"ts": "2025-12-04T05:24:51.996535+00:00", "action": "chunk_end", "target": "data\\pdfs\\Insurance Regulatory and Development Authority Act, 1999.pdf", "status": "completed", "duration": 0.0, "num_chunks": 100, "error": null}
+{"ts": "2025-12-04T05:25:08.924743+00:00", "action": "embed_batch", "batch_start": 0, "batch_size": 32, "total_chunks": 100, "status": "completed"}
+{"ts": "2025-12-04T05:25:26.823106+00:00", "action": "embed_batch", "batch_start": 32, "batch_size": 32, "total_chunks": 100, "status": "completed"}
+{"ts": "2025-12-04T05:25:45.632546+00:00", "action": "embed_batch", "batch_start": 64, "batch_size": 32, "total_chunks": 100, "status": "completed"}
+{"ts": "2025-12-04T05:25:49.641950+00:00", "action": "embed_batch", "batch_start": 96, "batch_size": 4, "total_chunks": 100, "status": "completed"}
+{"ts": "2025-12-04T05:25:49.643888+00:00", "action": "embed_end", "target": "data\\pdfs\\Insurance Regulatory and Development Authority Act, 1999.pdf", "status": "completed", "duration": 57.65, "num_embeddings": 100, "error": null}
+{"ts": "2025-12-04T05:25:49.842522+00:00", "action": "store_end", "target": "data\\pdfs\\Insurance Regulatory and Development Authority Act, 1999.pdf", "status": "completed", "duration": 0.2, "num_documents": 100, "error": null}
+{"ts": "2025-12-04T05:25:49.845614+00:00", "action": "process_end", "target": "data\\pdfs\\Insurance Regulatory and Development Authority Act, 1999.pdf", "status": "completed", "duration": 60.77}
+{"ts": "2025-12-04T05:25:49.849547+00:00", "action": "process_start", "target": "data\\pdfs\\Information Technology Act, 2000.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-12-04T05:25:58.937988+00:00", "action": "extract_end", "target": "data\\pdfs\\Information Technology Act, 2000.pdf", "status": "completed", "duration": 9.09, "output_chars": 128897, "error": null}
+{"ts": "2025-12-04T05:25:58.940998+00:00", "action": "chunk_end", "target": "data\\pdfs\\Information Technology Act, 2000.pdf", "status": "completed", "duration": 0.0, "num_chunks": 152, "error": null}
+{"ts": "2025-12-04T05:26:33.942168+00:00", "action": "embed_batch", "batch_start": 0, "batch_size": 32, "total_chunks": 152, "status": "completed"}
+{"ts": "2025-12-04T05:27:09.718696+00:00", "action": "embed_batch", "batch_start": 32, "batch_size": 32, "total_chunks": 152, "status": "completed"}
+{"ts": "2025-12-04T05:27:46.266897+00:00", "action": "embed_batch", "batch_start": 64, "batch_size": 32, "total_chunks": 152, "status": "completed"}
+{"ts": "2025-12-04T05:28:04.265156+00:00", "action": "embed_batch", "batch_start": 96, "batch_size": 32, "total_chunks": 152, "status": "completed"}
+{"ts": "2025-12-04T05:28:22.241705+00:00", "action": "embed_batch", "batch_start": 128, "batch_size": 24, "total_chunks": 152, "status": "completed"}
+{"ts": "2025-12-04T05:28:22.242884+00:00", "action": "embed_end", "target": "data\\pdfs\\Information Technology Act, 2000.pdf", "status": "completed", "duration": 143.3, "num_embeddings": 152, "error": null}
+{"ts": "2025-12-04T05:28:22.359556+00:00", "action": "store_end", "target": "data\\pdfs\\Information Technology Act, 2000.pdf", "status": "completed", "duration": 0.12, "num_documents": 152, "error": null}
+{"ts": "2025-12-04T05:28:22.360763+00:00", "action": "process_end", "target": "data\\pdfs\\Information Technology Act, 2000.pdf", "status": "completed", "duration": 152.51}
+{"ts": "2025-12-04T05:28:22.363789+00:00", "action": "process_start", "target": "data\\pdfs\\Indian Contract Act, 1872.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-12-04T05:28:28.555726+00:00", "action": "extract_end", "target": "data\\pdfs\\Indian Contract Act, 1872.pdf", "status": "completed", "duration": 6.19, "output_chars": 173477, "error": null}
+{"ts": "2025-12-04T05:28:28.557187+00:00", "action": "chunk_end", "target": "data\\pdfs\\Indian Contract Act, 1872.pdf", "status": "completed", "duration": 0.0, "num_chunks": 204, "error": null}
+{"ts": "2025-12-04T05:28:51.345888+00:00", "action": "embed_batch", "batch_start": 0, "batch_size": 32, "total_chunks": 204, "status": "completed"}
+{"ts": "2025-12-04T05:29:10.620641+00:00", "action": "embed_batch", "batch_start": 32, "batch_size": 32, "total_chunks": 204, "status": "completed"}
+{"ts": "2025-12-04T05:29:30.611976+00:00", "action": "embed_batch", "batch_start": 64, "batch_size": 32, "total_chunks": 204, "status": "completed"}
+{"ts": "2025-12-04T05:29:54.953800+00:00", "action": "embed_batch", "batch_start": 96, "batch_size": 32, "total_chunks": 204, "status": "completed"}
+{"ts": "2025-12-04T05:30:16.039774+00:00", "action": "embed_batch", "batch_start": 128, "batch_size": 32, "total_chunks": 204, "status": "completed"}
+{"ts": "2025-12-04T05:30:34.689042+00:00", "action": "embed_batch", "batch_start": 160, "batch_size": 32, "total_chunks": 204, "status": "completed"}
+{"ts": "2025-12-04T05:30:41.797020+00:00", "action": "embed_batch", "batch_start": 192, "batch_size": 12, "total_chunks": 204, "status": "completed"}
+{"ts": "2025-12-04T05:30:41.798198+00:00", "action": "embed_end", "target": "data\\pdfs\\Indian Contract Act, 1872.pdf", "status": "completed", "duration": 133.24, "num_embeddings": 204, "error": null}
+{"ts": "2025-12-04T05:30:41.973568+00:00", "action": "store_end", "target": "data\\pdfs\\Indian Contract Act, 1872.pdf", "status": "completed", "duration": 0.17, "num_documents": 204, "error": null}
+{"ts": "2025-12-04T05:30:41.974793+00:00", "action": "process_end", "target": "data\\pdfs\\Indian Contract Act, 1872.pdf", "status": "completed", "duration": 139.61}
+{"ts": "2025-12-04T05:30:41.979268+00:00", "action": "process_start", "target": "data\\pdfs\\Food Safety and Standards Act,.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-12-04T05:30:47.725159+00:00", "action": "extract_end", "target": "data\\pdfs\\Food Safety and Standards Act,.pdf", "status": "completed", "duration": 5.74, "output_chars": 147698, "error": null}
+{"ts": "2025-12-04T05:30:47.726553+00:00", "action": "chunk_end", "target": "data\\pdfs\\Food Safety and Standards Act,.pdf", "status": "completed", "duration": 0.0, "num_chunks": 174, "error": null}
+{"ts": "2025-12-04T05:31:04.997643+00:00", "action": "embed_batch", "batch_start": 0, "batch_size": 32, "total_chunks": 174, "status": "completed"}
+{"ts": "2025-12-04T05:31:16.021509+00:00", "action": "embed_batch", "batch_start": 32, "batch_size": 32, "total_chunks": 174, "status": "completed"}
+{"ts": "2025-12-04T05:31:26.876147+00:00", "action": "embed_batch", "batch_start": 64, "batch_size": 32, "total_chunks": 174, "status": "completed"}
+{"ts": "2025-12-04T05:31:40.814066+00:00", "action": "embed_batch", "batch_start": 96, "batch_size": 32, "total_chunks": 174, "status": "completed"}
+{"ts": "2025-12-04T05:31:52.606167+00:00", "action": "embed_batch", "batch_start": 128, "batch_size": 32, "total_chunks": 174, "status": "completed"}
+{"ts": "2025-12-04T05:31:58.806488+00:00", "action": "embed_batch", "batch_start": 160, "batch_size": 14, "total_chunks": 174, "status": "completed"}
+{"ts": "2025-12-04T05:31:58.807502+00:00", "action": "embed_end", "target": "data\\pdfs\\Food Safety and Standards Act,.pdf", "status": "completed", "duration": 71.08, "num_embeddings": 174, "error": null}
+{"ts": "2025-12-04T05:31:58.898406+00:00", "action": "store_end", "target": "data\\pdfs\\Food Safety and Standards Act,.pdf", "status": "completed", "duration": 0.09, "num_documents": 174, "error": null}
+{"ts": "2025-12-04T05:31:58.899025+00:00", "action": "process_end", "target": "data\\pdfs\\Food Safety and Standards Act,.pdf", "status": "completed", "duration": 76.92}
+{"ts": "2025-12-04T05:31:58.900753+00:00", "action": "process_start", "target": "data\\pdfs\\Consumer protection act.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-12-04T05:32:03.371972+00:00", "action": "extract_end", "target": "data\\pdfs\\Consumer protection act.pdf", "status": "completed", "duration": 4.47, "output_chars": 132371, "error": null}
+{"ts": "2025-12-04T05:32:03.373649+00:00", "action": "chunk_end", "target": "data\\pdfs\\Consumer protection act.pdf", "status": "completed", "duration": 0.0, "num_chunks": 156, "error": null}
+{"ts": "2025-12-04T05:32:19.890870+00:00", "action": "embed_batch", "batch_start": 0, "batch_size": 32, "total_chunks": 156, "status": "completed"}
+{"ts": "2025-12-04T05:32:31.194139+00:00", "action": "embed_batch", "batch_start": 32, "batch_size": 32, "total_chunks": 156, "status": "completed"}
+{"ts": "2025-12-04T05:32:42.160560+00:00", "action": "embed_batch", "batch_start": 64, "batch_size": 32, "total_chunks": 156, "status": "completed"}
+{"ts": "2025-12-04T05:32:53.062914+00:00", "action": "embed_batch", "batch_start": 96, "batch_size": 32, "total_chunks": 156, "status": "completed"}
+{"ts": "2025-12-04T05:33:03.234756+00:00", "action": "embed_batch", "batch_start": 128, "batch_size": 28, "total_chunks": 156, "status": "completed"}
+{"ts": "2025-12-04T05:33:03.235554+00:00", "action": "embed_end", "target": "data\\pdfs\\Consumer protection act.pdf", "status": "completed", "duration": 59.86, "num_embeddings": 156, "error": null}
+{"ts": "2025-12-04T05:33:03.324022+00:00", "action": "store_end", "target": "data\\pdfs\\Consumer protection act.pdf", "status": "completed", "duration": 0.09, "num_documents": 156, "error": null}
+{"ts": "2025-12-04T05:33:03.324820+00:00", "action": "process_end", "target": "data\\pdfs\\Consumer protection act.pdf", "status": "completed", "duration": 64.42}
+{"ts": "2025-12-04T05:33:03.326312+00:00", "action": "process_start", "target": "data\\pdfs\\Chronological List of Central Acts.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-12-04T05:33:06.422279+00:00", "action": "extract_end", "target": "data\\pdfs\\Chronological List of Central Acts.pdf", "status": "completed", "duration": 3.1, "output_chars": 47443, "error": null}
+{"ts": "2025-12-04T05:33:06.423069+00:00", "action": "chunk_end", "target": "data\\pdfs\\Chronological List of Central Acts.pdf", "status": "completed", "duration": 0.0, "num_chunks": 56, "error": null}
+{"ts": "2025-12-04T05:33:20.311207+00:00", "action": "embed_batch", "batch_start": 0, "batch_size": 32, "total_chunks": 56, "status": "completed"}
+{"ts": "2025-12-04T05:33:30.686136+00:00", "action": "embed_batch", "batch_start": 32, "batch_size": 24, "total_chunks": 56, "status": "completed"}
+{"ts": "2025-12-04T05:33:30.686831+00:00", "action": "embed_end", "target": "data\\pdfs\\Chronological List of Central Acts.pdf", "status": "completed", "duration": 24.26, "num_embeddings": 56, "error": null}
+{"ts": "2025-12-04T05:33:30.715682+00:00", "action": "store_end", "target": "data\\pdfs\\Chronological List of Central Acts.pdf", "status": "completed", "duration": 0.03, "num_documents": 56, "error": null}
+{"ts": "2025-12-04T05:33:30.716204+00:00", "action": "process_end", "target": "data\\pdfs\\Chronological List of Central Acts.pdf", "status": "completed", "duration": 27.39}
+{"ts": "2025-12-04T05:33:30.717067+00:00", "action": "process_start", "target": "data\\pdfs\\COI_2024.pdf", "status": "started", "reason": "processing file"}
+{"ts": "2025-12-04T05:34:18.192778+00:00", "action": "extract_end", "target": "data\\pdfs\\COI_2024.pdf", "status": "completed", "duration": 47.48, "output_chars": 1682893, "error": null}
+{"ts": "2025-12-04T05:34:18.194505+00:00", "action": "chunk_end", "target": "data\\pdfs\\COI_2024.pdf", "status": "completed", "duration": 0.0, "num_chunks": 1980, "error": null}
+{"ts": "2025-12-04T05:34:41.756663+00:00", "action": "embed_batch", "batch_start": 0, "batch_size": 32, "total_chunks": 1980, "status": "completed"}
+{"ts": "2025-12-04T05:35:05.606622+00:00", "action": "embed_batch", "batch_start": 32, "batch_size": 32, "total_chunks": 1980, "status": "completed"}
+{"ts": "2025-12-04T05:35:29.882944+00:00", "action": "embed_batch", "batch_start": 64, "batch_size": 32, "total_chunks": 1980, "status": "completed"}

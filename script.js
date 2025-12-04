@@ -7,7 +7,8 @@ const state = {
     activeSession: null,
     streamMode: localStorage.getItem('STREAM_MODE') === 'true',
     sidebarExpanded: localStorage.getItem('SIDEBAR_EXPANDED') !== 'false',
-    agentEventSource: null
+    agentEventSource: null,
+    reasoningBuffer: [] // Buffer to store all reasoning events for display
 };
 
 /* --- UI Elements --- */
@@ -26,6 +27,7 @@ const elements = {
         profile: document.getElementById('profile-card'),
         agent: document.getElementById('agent-modal'),
         docgen: document.getElementById('docgen-modal'),
+        summarize: document.getElementById('summarize-modal'),
         pdfViewer: document.getElementById('pdf-viewer-modal')
     },
     // Sidebar Buttons
@@ -147,9 +149,22 @@ function setupEventListeners() {
     if (reasoningToggle) {
         reasoningToggle.addEventListener('change', (e) => {
             const panel = document.getElementById('agent-reasoning-container');
+            const list = document.getElementById('agent-reasoning-list');
+            console.log('Reasoning toggle:', e.target.checked, 'Buffer size:', state.reasoningBuffer.length);
             if (e.target.checked) {
                 panel.classList.remove('hidden');
-                loadAgentReasoning();
+                // Clear and populate with buffered reasoning events
+                list.innerHTML = '';
+                if (state.reasoningBuffer.length === 0) {
+                    list.innerHTML = 'No reasoning loaded.';
+                    console.log('Buffer is empty');
+                } else {
+                    console.log('Displaying', state.reasoningBuffer.length, 'buffered events');
+                    state.reasoningBuffer.forEach(entry => {
+                        console.log('Adding reasoning entry:', entry.type);
+                        addReasoningEntryToPanel(entry);
+                    });
+                }
             } else {
                 panel.classList.add('hidden');
             }
@@ -204,6 +219,12 @@ function setupEventListeners() {
     if (docgenBtn) docgenBtn.addEventListener('click', () => showModal('docgen'));
     const docgenGenerateBtn = document.getElementById('docgen-generate');
     if (docgenGenerateBtn) docgenGenerateBtn.addEventListener('click', handleDocgenGenerate);
+    
+    // Summarization
+    const summarizeBtn = document.getElementById('sidebar-summarize-btn');
+    if (summarizeBtn) summarizeBtn.addEventListener('click', () => showModal('summarize'));
+    const summarizeGenerateBtn = document.getElementById('summarize-generate');
+    if (summarizeGenerateBtn) summarizeGenerateBtn.addEventListener('click', handleSummarizeGenerate);
     
     // PDF viewer controls
     if (document.getElementById('pdf-prev-btn')) {
@@ -516,6 +537,14 @@ function appendMessage(text, role, isLoading = false) {
             extraContent.classList.add('hidden');
             extraToggle.textContent = 'Show reasoning ▾';
         } else {
+            // If there is no attached reasoning, provide a basic "thinking" fallback
+            if (extraContent.innerHTML.trim() === '') {
+                try {
+                    extraContent.innerHTML = buildBasicThinking(bubble);
+                } catch (err) {
+                    // ignore
+                }
+            }
             extraContent.classList.remove('hidden');
             extraToggle.textContent = 'Hide reasoning ▴';
         }
@@ -607,8 +636,18 @@ function appendMessage(text, role, isLoading = false) {
 // Attach reasoning/evaluation text to the last bot message's extra content
 function attachReasoningToLastBot(itemHtml) {
     const botMsgs = document.querySelectorAll('.chat-message.bot-message');
-    if (!botMsgs || botMsgs.length === 0) return false;
-    const last = botMsgs[botMsgs.length - 1];
+    let last = null;
+    if (!botMsgs || botMsgs.length === 0) {
+        // No bot messages exist yet — create a placeholder bot message so reasoning can attach
+        try {
+            const newId = appendMessage('', 'bot');
+            last = document.getElementById(newId);
+        } catch (e) {
+            return false;
+        }
+    } else {
+        last = botMsgs[botMsgs.length - 1];
+    }
     const extraContent = last.querySelector('.extra-content');
     if (!extraContent) return false;
     // Append a block
@@ -617,6 +656,31 @@ function attachReasoningToLastBot(itemHtml) {
     block.innerHTML = itemHtml;
     extraContent.appendChild(block);
     return true;
+}
+
+// Build a small basic-thinking HTML snippet when no detailed reasoning exists
+function buildBasicThinking(bubbleEl) {
+    const txt = (bubbleEl && bubbleEl.textContent) ? bubbleEl.textContent : '';
+    let html = `<div style="padding:8px 0;color:var(--text-secondary)"><strong>Basic thinking</strong><div style="margin-top:6px">`;
+    // Detect references / citations
+    const hasRefs = /References:|\[\d+\]|\bSource\b/i.test(txt);
+    if (hasRefs) {
+        html += 'This answer appears to be grounded in local documents (RAG).';
+        // Try to extract referenced lines
+        const lines = txt.split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 0);
+        const refs = lines.filter(l => /^(\[?\d+\]?|References:)/i.test(l) || /^[-•]\s*/.test(l));
+        if (refs.length) {
+            html += '<div style="margin-top:8px;border-top:1px solid var(--border-color);padding-top:6px"><strong>Sources:</strong>';
+            refs.forEach(r => html += `<div style="margin-top:4px;font-size:0.95rem">${escapeHtml(r)}</div>`);
+            html += '</div>';
+        }
+    } else if (txt && txt.length > 0) {
+        html += 'This appears to be a direct language-model response (no explicit citations).';
+    } else {
+        html += 'No additional reasoning was produced for this response.';
+    }
+    html += '</div></div>';
+    return html;
 }
 
 function renderPlanInChat(planObj) {
@@ -832,6 +896,7 @@ async function loadAgentHistory() {
 
 function connectAgentStream() {
     if (state.agentEventSource) return; // already connected
+    state.reasoningBuffer = []; // Clear buffer for new run
     const container = document.getElementById('agent-log-container');
     
     state.agentEventSource = new EventSource(`${API_BASE}/api/agent/stream_events`);
@@ -864,6 +929,11 @@ function connectAgentStream() {
                     try { renderPlanInChat(parsed); } catch (e) {}
                     try { renderActionCard({type:'planner', plan: parsed}); } catch (e) {}
                 }
+                // Always buffer reasoning events, and display if checkbox is checked
+                if (data.type === 'planner_output' || data.type === 'reason' || data.type === 'evaluation' || data.type === 'run_complete') {
+                    console.log('Buffering event:', data.type);
+                    state.reasoningBuffer.push(data);
+                }
                 if (document.getElementById('agent-show-reasoning') && document.getElementById('agent-show-reasoning').checked) addReasoningEntryToPanel(data);
             }
 
@@ -893,6 +963,28 @@ function connectAgentStream() {
                 try { renderActionCard({type:'step_result', step_id:data.step_id, title:data.title, ok:data.ok, logs:data.logs, output_preview:data.output_preview}); } catch (e) {}
             } else if (data.type === 'reason' || data.type === 'evaluation' || data.type === 'run_complete') {
                 try { renderReasoningCard(data); } catch (e) {}
+                try {
+                    // Also attach a concise snippet to the last bot message so the chat "Show reasoning" dropdown is populated
+                    let itemHtml = '';
+                    if (data.type === 'evaluation') {
+                        const summary = escapeHtml(data.summary || data.result || '');
+                        const success = data.success ? '✅ SUCCESS' : '❌ FAILED';
+                        itemHtml = `<div style="margin-bottom:6px;font-weight:700">${success}</div><div>${summary}</div>`;
+                        if (data.sources && data.sources.length) {
+                            itemHtml += '<div style="margin-top:8px;border-top:1px solid var(--border-color);padding-top:6px"><strong>Sources:</strong>';
+                            data.sources.forEach(s => { itemHtml += `<div style="margin-top:4px;font-size:0.9rem"><span style=\"color:var(--accent-primary)\">${escapeHtml(s.title||s.id||'Source')}</span>: ${escapeHtml(s.snippet||'')}</div>` });
+                            itemHtml += '</div>';
+                        }
+                    } else if (data.type === 'reason') {
+                        const title = escapeHtml(data.title || 'Internal Reasoning');
+                        const exp = escapeHtml(data.expectations || data.reason || '(no details)');
+                        itemHtml = `<div style="font-weight:600;margin-bottom:6px">${title}</div><div style="color:var(--text-secondary);font-size:0.95rem;white-space:pre-wrap">${exp}</div>`;
+                    } else if (data.type === 'run_complete') {
+                        const summary = escapeHtml(data.summary || JSON.stringify(data, null, 2));
+                        itemHtml = `<div style="font-weight:600">Run Complete</div><div style="margin-top:6px">${summary}</div>`;
+                    }
+                    if (itemHtml) attachReasoningToLastBot(itemHtml);
+                } catch (e) { console.warn('attachReasoningToLastBot failed', e); }
             } else if (data.type === 'need_input') {
                 try { renderNeedInputForm(data); } catch (e) {}
             }
@@ -1329,6 +1421,58 @@ async function handleDocgenGenerate() {
     }
 }
 
+async function handleSummarizeGenerate() {
+    try {
+        const request = document.getElementById('summarize-request').value.trim();
+        const filePath = document.getElementById('summarize-file-path').value.trim();
+        const text = document.getElementById('summarize-text').value.trim();
+
+        if (!request) {
+            showToast('Please enter a summarization request', 'error');
+            return;
+        }
+
+        if (!filePath && !text) {
+            showToast('Please provide a file path or text to summarize', 'error');
+            return;
+        }
+
+        showToast('Starting summarization...', 'info');
+
+        // Call the /api/agent/summarize endpoint
+        const res = await fetch(`${API_BASE}/api/agent/summarize`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': state.authToken ? `Bearer ${state.authToken}` : ''
+            },
+            body: JSON.stringify({ request, file_path: filePath, text })
+        });
+
+        if (!res.ok) throw new Error('Summarization request failed');
+        const data = await res.json();
+
+        // Show result and set up SSE listener for agent logs
+        const resultDiv = document.getElementById('summarize-result');
+        resultDiv.innerHTML = `
+            <div style="padding:12px;background:var(--bg-card);border-radius:6px;border:1px solid var(--border-color);">
+                <p><strong>Summarization in progress...</strong></p>
+                <p>Check Agent Logs to view progress and results.</p>
+            </div>
+        `;
+
+        // Subscribe to agent events if not already
+        if (!state.agentEventSource) {
+            subscribeToAgentEvents();
+        }
+
+        showToast('Summarization request submitted. Check Agent Logs for updates.', 'success');
+    } catch (e) {
+        showToast('Summarization error: ' + e.message, 'error');
+        console.error('Summarization error:', e);
+    }
+}
+
 // PDF Viewer state
 let pdfDoc = null;
 let pdfPage = 1;
@@ -1636,10 +1780,12 @@ function addReasoningEntryToPanel(data) {
         const text = data.plan || data.raw || JSON.stringify(data, null, 2);
         item.innerHTML = `<div style="font-size:0.95rem;color:var(--muted)">[${ts}] <strong>Planner Output</strong></div><pre style="white-space:pre-wrap;margin:6px 0">${escapeHtml(text)}</pre>`;
     } else if (data.type === 'reason') {
-        const reasonText = data.reason || data.explain || JSON.stringify(data, null, 2);
-        item.innerHTML = `<div style="font-size:0.95rem;color:var(--muted)">[${ts}] <strong>Reasoning</strong></div><pre style="white-space:pre-wrap;margin:6px 0">${escapeHtml(typeof reasonText === 'string' ? reasonText : JSON.stringify(reasonText, null, 2))}</pre>`;
+        const title = data.title || 'Internal Reasoning';
+        const expectations = data.expectations || '';
+        const reasonText = expectations || '(reasoning step executed)';
+        item.innerHTML = `<div style="font-size:0.95rem;color:var(--muted)">[${ts}] <strong>💭 Reasoning</strong></div><div style="font-weight:600;margin:6px 0">${escapeHtml(title)}</div><pre style="white-space:pre-wrap;margin:6px 0;color:var(--fg-secondary)">${escapeHtml(reasonText)}</pre>`;
     } else if (data.type === 'run_complete') {
-        item.innerHTML = `<div style="font-size:0.95rem;color:var(--muted)">[${ts}] <strong>Run Complete</strong></div><div style="margin-top:6px">${escapeHtml(JSON.stringify(data, null, 2))}</div>`;
+        item.innerHTML = `<div style="font-size:0.95rem;color:var(--muted)">[${ts}] <strong>✓ Run Complete</strong></div><div style="margin-top:6px">${escapeHtml(JSON.stringify(data, null, 2))}</div>`;
     } else {
         item.innerHTML = `<div style="font-size:0.95rem;color:var(--muted)">[${ts}] <strong>${escapeHtml(data.type || 'event')}</strong></div><pre style="white-space:pre-wrap;margin:6px 0">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`;
     }

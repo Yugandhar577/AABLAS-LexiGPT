@@ -79,3 +79,32 @@ def decode_base64_image(base64_string: str, filename: str = None) -> str:
         f.write(image_data)
     
     return image_path
+
+
+def resolve_uploaded_file_path(filename: str) -> Optional[str]:
+    """
+    Resolve the full path to an uploaded file in data/pdfs/.
+    
+    Args:
+        filename: The filename to search for (e.g., 'Yugandhar Resume V2.pdf')
+    
+    Returns:
+        Full path if found, else None
+    """
+    project_root = Path(__file__).parent.parent
+    pdfs_dir = project_root / "data" / "pdfs"
+    
+    if not pdfs_dir.exists():
+        return None
+    
+    # Try exact match first
+    exact_path = pdfs_dir / filename
+    if exact_path.exists():
+        return str(exact_path)
+    
+    # Try case-insensitive search
+    for file in pdfs_dir.iterdir():
+        if file.is_file() and file.name.lower() == filename.lower():
+            return str(file)
+    
+    return None
