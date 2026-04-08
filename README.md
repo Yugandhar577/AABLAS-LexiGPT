@@ -13,12 +13,17 @@ LexiGPT is an offline-first legal assistant that combines a planner–executor a
 ## Project Structure
 
 ```
-├── app.py                  # Flask application factory
+├── app.py                  # Flask application entrypoint
+├── config.py               # Environment-driven configuration
 ├── routes/                 # API blueprints (chat, RAG, agent, docgen, history)
 ├── services/               # Ollama client, agent runtime, docgen, chat store
 ├── rag/                    # Vector DB + retriever helpers
-├── data/combined.json      # Seed legal corpus for Chroma
-├── index.html / script.js  # Front-end chat interface
+├── utils/                  # Shared helpers and prompts
+├── scripts/                # One-off utilities and maintenance scripts
+├── frontend/               # HTML/CSS/JS chat interface
+├── docs/                   # Project reports, guides, and demo scripts
+├── data/                   # Local persistence, uploads, and seed corpus
+├── generated/              # Generated documents
 └── requirements.txt
 ```
 
@@ -40,7 +45,7 @@ LexiGPT is an offline-first legal assistant that combines a planner–executor a
    ```
 2. **(Optional) Seed/verify the Chroma DB**
    ```bash
-   python rag/chroma_init.py
+   python scripts/build_law_chromadb.py
    ```
    The retriever will auto-seed from `data/combined.json` if the persistent store is empty.
 3. **Run the Flask API**
@@ -48,8 +53,8 @@ LexiGPT is an offline-first legal assistant that combines a planner–executor a
    python app.py
    ```
 4. **Open the UI**
-   - Serve `index.html` via any static server **or**
-   - Double-click it and let the scripts speak to `http://localhost:5000` (CORS is enabled).
+   - Serve `frontend/index.html` via any static server **or**
+   - Open `frontend/index.html` directly and let the scripts speak to `http://localhost:5000` (CORS is enabled).
 
 ## API Highlights
 
@@ -78,7 +83,8 @@ Environment variables (optional) in `config.py`:
 
 1. **Regular Chat** – type any legal query; the backend auto-creates a session and persists it locally.
 2. **RAG Mode** – call the `/api/chat` endpoint with `{"mode": "rag"}` to ensure the answer is grounded in the retrieved context.
-3. **Document Drafts** – `POST /api/docgen`:
+3. **Smoke Test** – run `python scripts/smoke_test.py` after starting the Flask server.
+4. **Document Drafts** – `POST /api/docgen`:
    ```json
    {
      "template": "nda",
@@ -91,7 +97,7 @@ Environment variables (optional) in `config.py`:
      }
    }
    ```
-4. **Planner Loop** – `POST /api/agent/plan-run` with `{ "goal": "Summarise Section 3 of the Motor Vehicles Act" }`.
+5. **Planner Loop** – `POST /api/agent/plan-run` with `{ "goal": "Summarise Section 3 of the Motor Vehicles Act" }`.
 
 ## Troubleshooting
 

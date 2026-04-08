@@ -239,14 +239,21 @@ def summarize_route():
         if file_path:
             context += f"File to analyze: {file_path}\n"
         if text:
+            # Include a short preview for planner context
             context += f"Text to summarize:\n{text[:500]}...\n"
+            # Strong instruction to prefer the provided inline text and which tool to use
+            context += (
+                "\nIMPORTANT: Use the provided TEXT above as the primary source for the summary. "
+                "Do NOT plan to read files or rely on uploaded documents unless a valid `file_path` is also provided. "
+                "When using the provided text, include a plan step that uses the `summarize_text` tool with the full text as input. "
+            )
 
         # Transform into an agent goal
         goal = (
             f"You are a document summarization agent. The user's request: {user_request}\n\n"
             f"{context}\n"
             f"Plan the steps to read or receive the content, analyze it, and produce a clear, structured summary "
-            f"using the summarize_text tool. Include key points, clauses, or findings."
+            f"using the summarize_text tool. Include key points, clauses, or findings. If required inputs are missing, ask the user for them using a need_input event."
         )
 
         # Run the agent with the enriched goal
